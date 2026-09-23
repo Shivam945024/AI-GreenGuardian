@@ -2,228 +2,245 @@ import requests
 import pandas as pd
 
 
-AIR_QUALITY_URL = (
-    "https://air-quality-api.open-meteo.com/v1/air-quality"
-)
+# =========================================================
+# CITY COORDINATES
+# =========================================================
 
-WEATHER_URL = (
-    "https://api.open-meteo.com/v1/forecast"
-)
+CITY_COORDINATES = {
+    "Lucknow": (26.8467, 80.9462),
+    "Delhi": (28.6139, 77.2090),
+    "Mumbai": (19.0760, 72.8777),
+    "Bengaluru": (12.9716, 77.5946),
+    "Kanpur": (26.4499, 80.3319),
+    "Kolkata": (22.5726, 88.3639),
+    "Chennai": (13.0827, 80.2707),
+    "Hyderabad": (17.3850, 78.4867),
+    "Pune": (18.5204, 73.8567),
+    "Jaipur": (26.9124, 75.7873),
+}
 
 
-def get_air_quality(
-    latitude,
-    longitude,
-    forecast_days=1
+# =========================================================
+# GET CITY COORDINATES
+# =========================================================
+
+def get_city_coordinates(city):
+
+    city = str(city).strip()
+
+    return CITY_COORDINATES.get(
+        city,
+        (26.8467, 80.9462)
+    )
+
+
+# =========================================================
+# LIVE WEATHER + AIR QUALITY
+# =========================================================
+
+def build_environment_record(
+    city,
+    latitude=None,
+    longitude=None
 ):
-    """
-    Get current/hourly air-quality information.
-    """
+
+    # If coordinates are not supplied,
+    # automatically get them from city.
+
+    if latitude is None or longitude is None:
+
+        latitude, longitude = get_city_coordinates(
+            city
+        )
+
+    # -----------------------------------------------------
+    # Open-Meteo API
+    # -----------------------------------------------------
+
+    url = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
     params = {
         "latitude": latitude,
         "longitude": longitude,
-        "hourly": (
-            "pm2_5,"
+
+        "current": (
             "pm10,"
+            "pm2_5,"
             "carbon_monoxide,"
             "nitrogen_dioxide,"
             "sulphur_dioxide,"
             "ozone"
         ),
-        "forecast_days": forecast_days,
+
         "timezone": "auto",
     }
 
     response = requests.get(
-        AIR_QUALITY_URL,
+        url,
         params=params,
-        timeout=20
+        timeout=15,
     )
 
     response.raise_for_status()
 
-    return response.json()
+    data = response.json()
+
+    current = data.get(
+        "current",
+        {}
+    )
+
+    # -----------------------------------------------------
+    # Weather API
+    # -----------------------------------------------------
+
+    weather_url = (
+        "https://api.open-meteo.com/v1/forecast"
+    )
+
+    weather_params = {
+        "latitude": latitude,
+        "longitude": longitude,
+
+        "current": (
+            "temperature_2m,"
+            "relative_humidity_2m,"
+            "wind_speed_10m"
+        ),
+
+        "timezone": "auto",
+    }
+
+    weather_response = requests.get(
+        weather_url,
+        params=weather_params,
+        timeout=15,
+    )
+
+    weather_response.raise_for_status()
+
+    weather_data = weather_response.json()
+
+    weather_current = weather_data.get(
+        "current",
+        {}
+    )
+
+    # -----------------------------------------------------
+    # Environment Record
+    # -----------------------------------------------------
+
+    environment = {
+        "City": city,
+
+        "PM2.5": current.get(
+            "pm2_5",
+            0
+        ),
+
+        "PM10": current.get(
+            "pm10",
+            0
+        ),
+
+        "NO2": current.get(
+            "nitrogen_dioxide",
+            0
+        ),
+
+        "SO2": current.get(
+            "sulphur_dioxide",
+            0
+        ),
+
+        "CO": current.get(
+            "carbon_monoxide",
+            0
+        ),
+
+        "O3": current.get(
+            "ozone",
+            0
+        ),
+
+        "Temperature": weather_current.get(
+            "temperature_2m",
+            0
+        ),
+
+        "Humidity": weather_current.get(
+            "relative_humidity_2m",
+            0
+        ),
+
+        "Wind Speed": weather_current.get(
+            "wind_speed_10m",
+            0
+        ),
+    }
+
+    return environment
 
 
-def get_weather(
-    latitude,
-    longitude,
-    forecast_days=1
+# =========================================================
+# HISTORICAL AIR QUALITY
+# =========================================================
+
+def air_quality_history(
+    city,
+    days=7
 ):
-    """
-    Get weather information.
-    """
+
+    latitude, longitude = get_city_coordinates(
+        city
+    )
+
+    url = (
+        "https://air-quality-api.open-meteo.com/"
+        "v1/air-quality"
+    )
 
     params = {
         "latitude": latitude,
         "longitude": longitude,
+
         "hourly": (
-            "temperature_2m,"
-            "relative_humidity_2m,"
-            "wind_speed_10m,"
-            "surface_pressure,"
-            "precipitation"
+            "pm10,"
+            "pm2_5,"
+            "nitrogen_dioxide,"
+            "sulphur_dioxide,"
+            "carbon_monoxide,"
+            "ozone"
         ),
-        "forecast_days": forecast_days,
+
+        "past_days": days,
+
         "timezone": "auto",
     }
 
     response = requests.get(
-        WEATHER_URL,
+        url,
         params=params,
-        timeout=20
+        timeout=20,
     )
 
     response.raise_for_status()
 
-    return response.json()
+    data = response.json()
 
-
-def get_combined_environment_data(
-    latitude,
-    longitude
-):
-    """
-    Combine air-quality and weather API data.
-    """
-
-    air_data = get_air_quality(
-        latitude,
-        longitude
+    hourly = data.get(
+        "hourly",
+        {}
     )
 
-    weather_data = get_weather(
-        latitude,
-        longitude
-    )
+    if not hourly:
+        return pd.DataFrame()
 
-    return {
-        "air_quality": air_data,
-        "weather": weather_data
-    }
+    df = pd.DataFrame(hourly)
 
-
-def extract_latest_air_quality(data):
-    """
-    Extract the latest available pollution values.
-    """
-
-    hourly = data.get("hourly", {})
-
-    def latest(key):
-        values = hourly.get(key, [])
-
-        if not values:
-            return 0.0
-
-        value = values[-1]
-
-        return float(value) if value is not None else 0.0
-
-    return {
-        "PM2.5": latest("pm2_5"),
-        "PM10": latest("pm10"),
-        "CO": latest("carbon_monoxide"),
-        "NO2": latest("nitrogen_dioxide"),
-        "SO2": latest("sulphur_dioxide"),
-        "O3": latest("ozone"),
-    }
-
-
-def extract_latest_weather(data):
-    """
-    Extract latest weather values.
-    """
-
-    hourly = data.get("hourly", {})
-
-    def latest(key):
-        values = hourly.get(key, [])
-
-        if not values:
-            return 0.0
-
-        value = values[-1]
-
-        return float(value) if value is not None else 0.0
-
-    return {
-        "Temperature": latest("temperature_2m"),
-        "Humidity": latest(
-            "relative_humidity_2m"
-        ),
-        "Wind Speed": latest(
-            "wind_speed_10m"
-        ),
-        "Pressure": latest(
-            "surface_pressure"
-        ),
-        "Rainfall": latest(
-            "precipitation"
-        ),
-    }
-
-
-def build_environment_record(
-    latitude,
-    longitude
-):
-    """
-    Return a single model-ready environment record.
-    """
-
-    combined = get_combined_environment_data(
-        latitude,
-        longitude
-    )
-
-    pollution = extract_latest_air_quality(
-        combined["air_quality"]
-    )
-
-    weather = extract_latest_weather(
-        combined["weather"]
-    )
-
-    return {
-        **pollution,
-        **weather
-    }
-
-
-def air_quality_history(
-    latitude,
-    longitude
-):
-    """
-    Return hourly pollution history as DataFrame.
-    """
-
-    data = get_air_quality(
-        latitude,
-        longitude,
-        forecast_days=2
-    )
-
-    hourly = data.get("hourly", {})
-
-    df = pd.DataFrame({
-        "time": hourly.get("time", []),
-        "PM2.5": hourly.get("pm2_5", []),
-        "PM10": hourly.get("pm10", []),
-        "NO2": hourly.get(
-            "nitrogen_dioxide", []
-        ),
-        "SO2": hourly.get(
-            "sulphur_dioxide", []
-        ),
-        "CO": hourly.get(
-            "carbon_monoxide", []
-        ),
-        "O3": hourly.get(
-            "ozone", []
-        ),
-    })
+    if "time" in df.columns:
+        df["time"] = pd.to_datetime(
+            df["time"]
+        )
 
     return df
