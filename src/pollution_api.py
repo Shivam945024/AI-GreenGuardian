@@ -1,10 +1,7 @@
 import requests
 import pandas as pd
+import time
 
-
-# =========================================================
-# CITY COORDINATES
-# =========================================================
 
 CITY_COORDINATES = {
     "Lucknow": (26.8467, 80.9462),
@@ -20,23 +17,52 @@ CITY_COORDINATES = {
 }
 
 
-# =========================================================
-# GET CITY COORDINATES
-# =========================================================
-
 def get_city_coordinates(city):
-
     city = str(city).strip()
 
-    return CITY_COORDINATES.get(
-        city,
-        (26.8467, 80.9462)
-    )
+    for name, coordinates in CITY_COORDINATES.items():
+        if name.lower() == city.lower():
+            return coordinates
+
+    return CITY_COORDINATES["Lucknow"]
 
 
-# =========================================================
-# LIVE WEATHER + AIR QUALITY
-# =========================================================
+def safe_request(url, params, retries=2):
+    """
+    Request helper with retry handling for 429 errors.
+    """
+
+    for attempt in range(retries + 1):
+
+        try:
+            response = requests.get(
+                url,
+                params=params,
+                timeout=15
+            )
+
+            if response.status_code == 429:
+
+                if attempt < retries:
+                    time.sleep(2 * (attempt + 1))
+                    continue
+
+                return None
+
+            response.raise_for_status()
+
+            return response.json()
+
+        except requests.RequestException:
+
+            if attempt < retries:
+                time.sleep(2 * (attempt + 1))
+                continue
+
+            return None
+
+    return None
+
 
 def build_environment_record(
     city,
@@ -44,23 +70,21 @@ def build_environment_record(
     longitude=None
 ):
 
-    # If coordinates are not supplied,
-    # automatically get them from city.
-
     if latitude is None or longitude is None:
+        latitude, longitude = get_city_coordinates(city)
 
-        latitude, longitude = get_city_coordinates(
-            city
-        )
+    # --------------------------------------------------
+    # AIR QUALITY API
+    # --------------------------------------------------
 
-    # -----------------------------------------------------
-    # Open-Meteo API
-    # -----------------------------------------------------
+    air_quality_url = (
+        "https://air-quality-api.open-meteo.com/v1/air-quality"
+    )
 
-    url = "https://air-quality-api.open-meteo.com/v1/air-quality"
+    air_quality_params = {
 
-    params = {
         "latitude": latitude,
+
         "longitude": longitude,
 
         "current": (
@@ -75,31 +99,75 @@ def build_environment_record(
         "timezone": "auto",
     }
 
-    response = requests.get(
-        url,
-        params=params,
-        timeout=15,
+    air_data = safe_request(
+        air_quality_url,
+        air_quality_params
     )
 
-    response.raise_for_status()
+    # --------------------------------------------------
+    # DEFAULT VALUES
+    # --------------------------------------------------
 
-    data = response.json()
+    environment = {
 
-    current = data.get(
-        "current",
-        {}
-    )
+        "City": city,
 
-    # -----------------------------------------------------
-    # Weather API
-    # -----------------------------------------------------
+        "PM2.5": 0,
+        "PM10": 0,
+        "NO2": 0,
+        "SO2": 0,
+        "CO": 0,
+        "O3": 0,
+
+        "Temperature": 0,
+        "Humidity": 0,
+        "Wind Speed": 0,
+    }
+
+    # --------------------------------------------------
+    # AIR QUALITY DATA
+    # --------------------------------------------------
+
+    if air_data:
+
+        current = air_data.get("current", {})
+
+        environment["PM2.5"] = current.get(
+            "pm2_5", 0
+        )
+
+        environment["PM10"] = current.get(
+            "pm10", 0
+        )
+
+        environment["NO2"] = current.get(
+            "nitrogen_dioxide", 0
+        )
+
+        environment["SO2"] = current.get(
+            "sulphur_dioxide", 0
+        )
+
+        environment["CO"] = current.get(
+            "carbon_monoxide", 0
+        )
+
+        environment["O3"] = current.get(
+            "ozone", 0
+        )
+
+    # --------------------------------------------------
+    # WEATHER API
+    # --------------------------------------------------
 
     weather_url = (
         "https://api.open-meteo.com/v1/forecast"
     )
 
     weather_params = {
+
         "latitude": latitude,
+
         "longitude": longitude,
 
         "current": (
@@ -111,97 +179,52 @@ def build_environment_record(
         "timezone": "auto",
     }
 
-    weather_response = requests.get(
+    weather_data = safe_request(
         weather_url,
-        params=weather_params,
-        timeout=15,
+        weather_params
     )
 
-    weather_response.raise_for_status()
+    # --------------------------------------------------
+    # WEATHER DATA
+    # --------------------------------------------------
 
-    weather_data = weather_response.json()
+    if weather_data:
 
-    weather_current = weather_data.get(
-        "current",
-        {}
-    )
+        weather_current = weather_data.get(
+            "current",
+            {}
+        )
 
-    # -----------------------------------------------------
-    # Environment Record
-    # -----------------------------------------------------
-
-    environment = {
-        "City": city,
-
-        "PM2.5": current.get(
-            "pm2_5",
-            0
-        ),
-
-        "PM10": current.get(
-            "pm10",
-            0
-        ),
-
-        "NO2": current.get(
-            "nitrogen_dioxide",
-            0
-        ),
-
-        "SO2": current.get(
-            "sulphur_dioxide",
-            0
-        ),
-
-        "CO": current.get(
-            "carbon_monoxide",
-            0
-        ),
-
-        "O3": current.get(
-            "ozone",
-            0
-        ),
-
-        "Temperature": weather_current.get(
+        environment["Temperature"] = weather_current.get(
             "temperature_2m",
             0
-        ),
+        )
 
-        "Humidity": weather_current.get(
+        environment["Humidity"] = weather_current.get(
             "relative_humidity_2m",
             0
-        ),
+        )
 
-        "Wind Speed": weather_current.get(
+        environment["Wind Speed"] = weather_current.get(
             "wind_speed_10m",
             0
-        ),
-    }
+        )
 
     return environment
 
 
-# =========================================================
-# HISTORICAL AIR QUALITY
-# =========================================================
+def air_quality_history(city, days=7):
 
-def air_quality_history(
-    city,
-    days=7
-):
-
-    latitude, longitude = get_city_coordinates(
-        city
-    )
+    latitude, longitude = get_city_coordinates(city)
 
     url = (
-        "https://air-quality-api.open-meteo.com/"
-        "v1/air-quality"
+        "https://air-quality-api.open-meteo.com/v1/air-quality"
     )
 
     params = {
+
         "latitude": latitude,
+
         "longitude": longitude,
 
         "hourly": (
@@ -218,15 +241,10 @@ def air_quality_history(
         "timezone": "auto",
     }
 
-    response = requests.get(
-        url,
-        params=params,
-        timeout=20,
-    )
+    data = safe_request(url, params)
 
-    response.raise_for_status()
-
-    data = response.json()
+    if not data:
+        return pd.DataFrame()
 
     hourly = data.get(
         "hourly",
@@ -239,6 +257,7 @@ def air_quality_history(
     df = pd.DataFrame(hourly)
 
     if "time" in df.columns:
+
         df["time"] = pd.to_datetime(
             df["time"]
         )
