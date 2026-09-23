@@ -10,7 +10,7 @@ import streamlit as st
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if BASE_DIR not in sys.path:
-    sys.path.append(BASE_DIR)
+    sys.path.insert(0, BASE_DIR)
 
 # =========================================================
 # PROJECT IMPORTS
@@ -101,36 +101,30 @@ st.markdown(
     """
     <style>
 
-    /* Main background */
     .stApp {
         background: #07130f;
         color: #f1f5f3;
     }
 
-    /* Sidebar */
     section[data-testid="stSidebar"] {
         background: #0b1f18;
         border-right: 1px solid #18382c;
     }
 
-    /* Sidebar text */
     section[data-testid="stSidebar"] * {
         color: #e7f5ee !important;
     }
 
-    /* Main content */
     .block-container {
         padding-top: 1.5rem;
         padding-bottom: 3rem;
         max-width: 1500px;
     }
 
-    /* Headings */
     h1, h2, h3 {
         color: #e8fff2 !important;
     }
 
-    /* Metric cards */
     div[data-testid="stMetric"] {
         background: linear-gradient(
             145deg,
@@ -151,7 +145,6 @@ st.markdown(
         color: #eafff2 !important;
     }
 
-    /* Buttons */
     .stButton > button {
         border-radius: 10px;
         border: 1px solid #245640;
@@ -162,16 +155,14 @@ st.markdown(
 
     .stButton > button:hover {
         border-color: #49d18c;
-        color: #ffffff;
+        color: white;
     }
 
-    /* Select boxes */
     div[data-baseweb="select"] > div {
         background: #0d241b;
         border-color: #245640;
     }
 
-    /* Info boxes */
     .info-card {
         background: #0d241b;
         border: 1px solid #1d4636;
@@ -180,7 +171,6 @@ st.markdown(
         margin-bottom: 15px;
     }
 
-    /* Status */
     .status-online {
         display: inline-block;
         padding: 5px 12px;
@@ -201,14 +191,12 @@ st.markdown(
         font-weight: 600;
     }
 
-    /* Section divider */
     .section-divider {
         height: 1px;
         background: #1a3b2f;
         margin: 25px 0;
     }
 
-    /* Footer */
     .footer {
         text-align: center;
         color: #729586;
@@ -222,39 +210,68 @@ st.markdown(
 )
 
 # =========================================================
+# CITY COORDINATES
+# =========================================================
+
+CITY_COORDINATES = {
+    "Lucknow": (26.8467, 80.9462),
+    "Delhi": (28.6139, 77.2090),
+    "Mumbai": (19.0760, 72.8777),
+    "Bengaluru": (12.9716, 77.5946),
+    "Kanpur": (26.4499, 80.3319),
+    "Kolkata": (22.5726, 88.3639),
+    "Chennai": (13.0827, 80.2707),
+    "Hyderabad": (17.3850, 78.4867),
+    "Pune": (18.5204, 73.8567),
+    "Jaipur": (26.9124, 75.7873),
+}
+
+# =========================================================
 # HELPER FUNCTIONS
 # =========================================================
 
 def safe_float(value, default=0.0):
     try:
+        if value is None:
+            return default
+
         if pd.isna(value):
             return default
+
         return float(value)
+
     except Exception:
         return default
 
 
 def get_aqi_category(aqi):
-    """Safe AQI category helper."""
+
     aqi = safe_float(aqi)
 
     if aqi <= 50:
         return "Good"
+
     elif aqi <= 100:
         return "Satisfactory"
+
     elif aqi <= 200:
         return "Moderate"
+
     elif aqi <= 300:
         return "Poor"
+
     elif aqi <= 400:
         return "Very Poor"
+
     else:
         return "Severe"
 
 
 def safe_call(function, *args, default=None, **kwargs):
+
     try:
         return function(*args, **kwargs)
+
     except Exception:
         return default
 
@@ -267,21 +284,21 @@ def safe_call(function, *args, default=None, **kwargs):
 def load_all_data():
 
     try:
-        pollution_df = load_pollution_data()
+        pollution = load_pollution_data()
     except Exception:
-        pollution_df = pd.DataFrame()
+        pollution = pd.DataFrame()
 
     try:
-        weather_df = load_weather_data()
+        weather = load_weather_data()
     except Exception:
-        weather_df = pd.DataFrame()
+        weather = pd.DataFrame()
 
     try:
-        city_df = load_city_data()
+        cities = load_city_data()
     except Exception:
-        city_df = pd.DataFrame()
+        cities = pd.DataFrame()
 
-    return pollution_df, weather_df, city_df
+    return pollution, weather, cities
 
 
 pollution_df, weather_df, city_df = load_all_data()
@@ -299,7 +316,11 @@ with st.sidebar:
             padding:10px 0 20px 0;
         ">
             <div style="font-size:42px;">🌱</div>
-            <h2 style="margin:0;">GreenGuardian</h2>
+
+            <h2 style="margin:0;">
+                GreenGuardian
+            </h2>
+
             <p style="
                 color:#82ad9b;
                 font-size:13px;
@@ -314,7 +335,6 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Navigation
     page = st.radio(
         "Navigation",
         [
@@ -332,48 +352,46 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # City list
-    default_cities = [
-        "Lucknow",
-        "Delhi",
-        "Mumbai",
-        "Bengaluru",
-        "Kanpur",
-        "Kolkata",
-        "Chennai",
-        "Hyderabad",
-        "Pune",
-        "Jaipur",
-    ]
+    # =====================================================
+    # CITY LIST
+    # =====================================================
+
+    default_cities = list(CITY_COORDINATES.keys())
 
     available_cities = default_cities.copy()
 
     try:
-        if not city_df.empty:
 
-            possible_columns = [
+        if city_df is not None and not city_df.empty:
+
+            for column in [
                 "City",
                 "city",
                 "CITY",
                 "Name",
                 "name",
-            ]
+            ]:
 
-            for col in possible_columns:
-                if col in city_df.columns:
+                if column in city_df.columns:
+
                     values = (
-                        city_df[col]
+                        city_df[column]
                         .dropna()
                         .astype(str)
                         .unique()
                         .tolist()
                     )
 
-                    if values:
-                        available_cities = sorted(
-                            list(set(default_cities + values))
+                    available_cities = sorted(
+                        list(
+                            set(
+                                default_cities
+                                + values
+                            )
                         )
-                        break
+                    )
+
+                    break
 
     except Exception:
         pass
@@ -381,7 +399,11 @@ with st.sidebar:
     selected_city = st.selectbox(
         "📍 Select City",
         available_cities,
-        index=0 if "Lucknow" in available_cities else 0,
+        index=(
+            available_cities.index("Lucknow")
+            if "Lucknow" in available_cities
+            else 0
+        ),
     )
 
     live_mode = st.toggle(
@@ -389,91 +411,138 @@ with st.sidebar:
         value=False,
     )
 
-    refresh = st.button(
+    if st.button(
         "🔄 Refresh Data",
         use_container_width=True,
-    )
+    ):
 
-    if refresh:
         st.cache_data.clear()
         st.rerun()
 
 # =========================================================
-# GET ENVIRONMENT DATA
+# ENVIRONMENT DATA
 # =========================================================
 
+environment = {}
 data_source = "Dataset Demo"
 
-environment = {}
+# =========================================================
+# LIVE OPEN-METEO DATA
+# =========================================================
 
-# Try live data
 if live_mode:
 
     try:
-        environment = build_environment_record(selected_city)
-        data_source = "Live Open-Meteo"
-    except Exception as e:
-        st.warning(
-            f"Live data unavailable. Using dataset data instead. ({e})"
+
+        latitude, longitude = CITY_COORDINATES.get(
+            selected_city,
+            (26.8467, 80.9462),
         )
+
+        # IMPORTANT:
+        # build_environment_record requires:
+        # city, latitude, longitude
+
+        environment = build_environment_record(
+            selected_city,
+            latitude,
+            longitude,
+        )
+
+        if environment is None:
+            raise ValueError(
+                "Live API returned empty data."
+            )
+
+        data_source = "Live Open-Meteo"
+
+    except Exception as error:
+
+        st.warning(
+            f"Live data unavailable. "
+            f"Using dataset data instead. "
+            f"({error})"
+        )
+
         live_mode = False
+        environment = {}
+        data_source = "Dataset Demo"
 
+# =========================================================
+# DATASET FALLBACK
+# =========================================================
 
-# Dataset fallback
 if not environment:
 
     try:
-        city_info = get_city_data(city_df, selected_city)
 
-        if isinstance(city_info, pd.DataFrame):
+        city_info = get_city_data(
+            city_df,
+            selected_city,
+        )
+
+        if isinstance(
+            city_info,
+            pd.DataFrame,
+        ):
+
             if not city_info.empty:
                 city_info = city_info.iloc[0]
 
-        if isinstance(city_info, pd.Series):
+        if isinstance(
+            city_info,
+            pd.Series,
+        ):
 
-            for key in [
-                "PM2.5",
-                "PM10",
-                "NO2",
-                "SO2",
-                "CO",
-                "O3",
-                "Temperature",
-                "Humidity",
-                "Wind Speed",
-            ]:
-                if key in city_info.index:
-                    environment[key] = city_info[key]
+            environment = city_info.to_dict()
 
     except Exception:
-        pass
+        environment = {}
 
+# =========================================================
+# POLLUTION DATASET FALLBACK
+# =========================================================
 
-# If city lookup didn't work, try pollution dataset
 if not environment and not pollution_df.empty:
 
     try:
 
         city_column = None
 
-        for col in ["City", "city", "CITY", "Name", "name"]:
-            if col in pollution_df.columns:
-                city_column = col
+        for column in [
+            "City",
+            "city",
+            "CITY",
+            "Name",
+            "name",
+        ]:
+
+            if column in pollution_df.columns:
+                city_column = column
                 break
 
         if city_column:
 
             filtered = pollution_df[
-                pollution_df[city_column].astype(str).str.lower()
-                == selected_city.lower()
+                pollution_df[city_column]
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                ==
+                selected_city
+                .strip()
+                .lower()
             ]
 
             if not filtered.empty:
-                environment = filtered.iloc[-1].to_dict()
+
+                environment = (
+                    filtered.iloc[-1]
+                    .to_dict()
+                )
 
     except Exception:
         pass
-
 
 # =========================================================
 # DEFAULT VALUES
@@ -485,28 +554,81 @@ environment.setdefault("NO2", 40)
 environment.setdefault("SO2", 20)
 environment.setdefault("CO", 0.8)
 environment.setdefault("O3", 50)
-environment.setdefault("Temperature", 28)
-environment.setdefault("Humidity", 60)
-environment.setdefault("Wind Speed", 8)
 
-# Clean values
-environment = clean_environment_data(environment)
+environment.setdefault(
+    "Temperature",
+    28,
+)
 
-pm25 = safe_float(environment.get("PM2.5"))
-pm10 = safe_float(environment.get("PM10"))
-no2 = safe_float(environment.get("NO2"))
-so2 = safe_float(environment.get("SO2"))
-co = safe_float(environment.get("CO"))
-o3 = safe_float(environment.get("O3"))
-temperature = safe_float(environment.get("Temperature"))
-humidity = safe_float(environment.get("Humidity"))
-wind_speed = safe_float(environment.get("Wind Speed"))
+environment.setdefault(
+    "Humidity",
+    60,
+)
+
+environment.setdefault(
+    "Wind Speed",
+    8,
+)
+
+# =========================================================
+# CLEAN DATA
+# =========================================================
+
+try:
+
+    environment = clean_environment_data(
+        environment
+    )
+
+except Exception:
+    pass
+
+# =========================================================
+# POLLUTANT VALUES
+# =========================================================
+
+pm25 = safe_float(
+    environment.get("PM2.5")
+)
+
+pm10 = safe_float(
+    environment.get("PM10")
+)
+
+no2 = safe_float(
+    environment.get("NO2")
+)
+
+so2 = safe_float(
+    environment.get("SO2")
+)
+
+co = safe_float(
+    environment.get("CO")
+)
+
+o3 = safe_float(
+    environment.get("O3")
+)
+
+temperature = safe_float(
+    environment.get("Temperature")
+)
+
+humidity = safe_float(
+    environment.get("Humidity")
+)
+
+wind_speed = safe_float(
+    environment.get("Wind Speed")
+)
 
 # =========================================================
 # AQI
 # =========================================================
 
 try:
+
     aqi = calculate_aqi(
         pm25=pm25,
         pm10=pm10,
@@ -515,9 +637,9 @@ try:
         co=co,
         o3=o3,
     )
+
 except Exception:
 
-    # Fallback AQI approximation
     aqi = max(
         pm25,
         pm10 * 0.65,
@@ -527,26 +649,39 @@ except Exception:
         co * 50,
     )
 
-aqi = round(safe_float(aqi), 1)
+aqi = round(
+    safe_float(aqi),
+    1,
+)
 
 try:
+
     aqi_desc = aqi_description(aqi)
+
 except Exception:
+
     aqi_desc = get_aqi_category(aqi)
 
 try:
+
     aqi_col = aqi_color(aqi)
+
 except Exception:
+
     aqi_col = "#49d18c"
 
 aqi_category = get_aqi_category(aqi)
 
 # =========================================================
-# RISK
+# ENVIRONMENTAL RISK
 # =========================================================
 
 try:
-    risk_score = environmental_risk(environment)
+
+    risk_score = environmental_risk(
+        environment
+    )
+
 except Exception:
 
     risk_score = min(
@@ -561,53 +696,87 @@ except Exception:
         ),
     )
 
-risk_score = round(safe_float(risk_score), 1)
+risk_score = round(
+    safe_float(risk_score),
+    1,
+)
 
 try:
-    risk = risk_level(risk_score)
+
+    risk = risk_level(
+        risk_score
+    )
+
 except Exception:
+
     if risk_score < 25:
         risk = "Low"
+
     elif risk_score < 50:
         risk = "Moderate"
+
     elif risk_score < 75:
         risk = "High"
+
     else:
         risk = "Critical"
 
 try:
-    risk_msg = risk_message(risk_score)
-except Exception:
-    risk_msg = "Monitor environmental conditions and follow recommended precautions."
 
-# =========================================================
-# HEADER
-# =========================================================
-
-col1, col2 = st.columns([7, 3])
-
-with col1:
-
-    st.title("🌱 AI GreenGuardian")
-
-    st.caption(
-        "Smart Pollution Monitoring • AI Prediction • Environmental Risk Intelligence"
+    risk_msg = risk_message(
+        risk_score
     )
 
-with col2:
+except Exception:
+
+    risk_msg = (
+        "Monitor environmental conditions "
+        "and follow recommended precautions."
+    )
+
+# =========================================================
+# MAIN HEADER
+# =========================================================
+
+header_col1, header_col2 = st.columns(
+    [7, 3]
+)
+
+with header_col1:
+
+    st.title(
+        "🌱 AI GreenGuardian"
+    )
+
+    st.caption(
+        "Smart Pollution Monitoring • "
+        "AI Prediction • "
+        "Environmental Risk Intelligence"
+    )
+
+with header_col2:
 
     if live_mode:
+
         st.markdown(
-            '<div class="status-online">● LIVE DATA</div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div class="status-demo">● DATASET MODE</div>',
+            '<div class="status-online">'
+            '● LIVE DATA'
+            '</div>',
             unsafe_allow_html=True,
         )
 
-    st.caption(f"📍 {selected_city}")
+    else:
+
+        st.markdown(
+            '<div class="status-demo">'
+            '● DATASET MODE'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.caption(
+        f"📍 {selected_city}"
+    )
 
 # =========================================================
 # DASHBOARD
@@ -615,44 +784,60 @@ with col2:
 
 if page == "🏠 Dashboard":
 
-    st.markdown("## Environmental Overview")
+    st.header(
+        "Environmental Overview"
+    )
 
-    m1, m2, m3, m4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
 
-    with m1:
+    with col1:
+
         st.metric(
             "AQI",
             f"{aqi:.0f}",
             aqi_category,
         )
 
-    with m2:
+    with col2:
+
         st.metric(
             "PM2.5",
             f"{pm25:.1f} µg/m³",
         )
 
-    with m3:
+    # =====================================================
+    # AI PREDICTION
+    # =====================================================
 
-        try:
-            predicted_aqi = predict_next_aqi(
-                environment,
-                selected_city,
-            )
-        except Exception:
-            predicted_aqi = aqi * 1.03
+    try:
 
-        predicted_aqi = safe_float(predicted_aqi, aqi)
+        predicted_aqi = predict_next_aqi(
+            environment,
+            selected_city,
+        )
 
-        change = predicted_aqi - aqi
+    except Exception:
+
+        predicted_aqi = aqi * 1.03
+
+    predicted_aqi = safe_float(
+        predicted_aqi,
+        aqi,
+    )
+
+    prediction_delta = (
+        predicted_aqi - aqi
+    )
+
+    with col3:
 
         st.metric(
             "Predicted AQI",
             f"{predicted_aqi:.0f}",
-            f"{change:+.0f}",
+            f"{prediction_delta:+.0f}",
         )
 
-    with m4:
+    with col4:
 
         st.metric(
             "Risk Score",
@@ -660,41 +845,76 @@ if page == "🏠 Dashboard":
             risk,
         )
 
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-divider"></div>',
+        unsafe_allow_html=True,
+    )
 
-    # AQI and Risk
-    c1, c2 = st.columns(2)
+    # =====================================================
+    # GAUGES
+    # =====================================================
 
-    with c1:
+    gauge1, gauge2 = st.columns(2)
 
-        st.subheader("AQI Status")
+    with gauge1:
+
+        st.subheader(
+            "AQI Status"
+        )
 
         try:
+
             fig = aqi_gauge(aqi)
+
             st.plotly_chart(
                 fig,
                 use_container_width=True,
             )
+
         except Exception:
-            st.info(f"AQI: {aqi:.0f} — {aqi_category}")
 
-    with c2:
+            st.info(
+                f"AQI: {aqi:.0f} — "
+                f"{aqi_category}"
+            )
 
-        st.subheader("Environmental Risk")
+    with gauge2:
+
+        st.subheader(
+            "Environmental Risk"
+        )
 
         try:
-            fig = risk_gauge(risk_score)
+
+            fig = risk_gauge(
+                risk_score
+            )
+
             st.plotly_chart(
                 fig,
                 use_container_width=True,
             )
+
         except Exception:
-            st.info(
-                f"Risk Score: {risk_score:.0f}/100 — {risk}"
+
+            st.progress(
+                min(
+                    risk_score / 100,
+                    1.0,
+                )
             )
 
-    # Pollutants
-    st.subheader("Pollution Levels")
+            st.write(
+                f"Risk: {risk}"
+            )
+
+    # =====================================================
+    # POLLUTION CHART
+    # =====================================================
+
+    st.subheader(
+        "Pollution Levels"
+    )
 
     pollutant_data = pd.DataFrame(
         {
@@ -718,20 +938,33 @@ if page == "🏠 Dashboard":
     )
 
     try:
-        fig = pollutant_bar_chart(pollutant_data)
+
+        fig = pollutant_bar_chart(
+            pollutant_data
+        )
+
         st.plotly_chart(
             fig,
             use_container_width=True,
         )
+
     except Exception:
+
         st.bar_chart(
-            pollutant_data.set_index("Pollutant")
+            pollutant_data.set_index(
+                "Pollutant"
+            )
         )
 
-    # Weather
-    st.subheader("Weather Conditions")
+    # =====================================================
+    # WEATHER
+    # =====================================================
 
-    weather_data = pd.DataFrame(
+    st.subheader(
+        "Weather Conditions"
+    )
+
+    weather_values = pd.DataFrame(
         {
             "Metric": [
                 "Temperature",
@@ -747,12 +980,15 @@ if page == "🏠 Dashboard":
     )
 
     st.dataframe(
-        weather_data,
+        weather_values,
         use_container_width=True,
         hide_index=True,
     )
 
-    # Risk message
+    # =====================================================
+    # RISK MESSAGE
+    # =====================================================
+
     st.markdown(
         f"""
         <div class="info-card">
@@ -769,13 +1005,15 @@ if page == "🏠 Dashboard":
 
 elif page == "🌫 Pollution Monitor":
 
-    st.title("🌫 Pollution Monitor")
-
-    st.write(
-        f"Current environmental pollution profile for **{selected_city}**."
+    st.title(
+        "🌫 Pollution Monitor"
     )
 
-    metrics = [
+    st.write(
+        f"Current pollution profile for **{selected_city}**."
+    )
+
+    values = [
         ("PM2.5", pm25, "µg/m³"),
         ("PM10", pm10, "µg/m³"),
         ("NO₂", no2, "µg/m³"),
@@ -786,9 +1024,15 @@ elif page == "🌫 Pollution Monitor":
 
     cols = st.columns(6)
 
-    for col, (name, value, unit) in zip(cols, metrics):
+    for col, item in zip(
+        cols,
+        values,
+    ):
+
+        name, value, unit = item
 
         with col:
+
             st.metric(
                 name,
                 f"{value:.1f}",
@@ -797,9 +1041,11 @@ elif page == "🌫 Pollution Monitor":
 
     st.markdown("---")
 
-    st.subheader("Pollutant Distribution")
+    st.subheader(
+        "Pollutant Distribution"
+    )
 
-    pollution_data = pd.DataFrame(
+    pollutant_data = pd.DataFrame(
         {
             "Pollutant": [
                 "PM2.5",
@@ -821,17 +1067,27 @@ elif page == "🌫 Pollution Monitor":
     )
 
     try:
-        fig = pollutant_bar_chart(pollution_data)
+
+        fig = pollutant_bar_chart(
+            pollutant_data
+        )
+
         st.plotly_chart(
             fig,
             use_container_width=True,
         )
+
     except Exception:
+
         st.bar_chart(
-            pollution_data.set_index("Pollutant")
+            pollutant_data.set_index(
+                "Pollutant"
+            )
         )
 
-    st.subheader("Pollution History")
+    st.subheader(
+        "Pollution History"
+    )
 
     try:
 
@@ -839,28 +1095,41 @@ elif page == "🌫 Pollution Monitor":
             selected_city
         )
 
-        if history is not None and not history.empty:
+        if (
+            history is not None
+            and not history.empty
+        ):
 
             try:
-                fig = pollution_chart(history)
+
+                fig = pollution_chart(
+                    history
+                )
+
                 st.plotly_chart(
                     fig,
                     use_container_width=True,
                 )
+
             except Exception:
+
                 st.dataframe(
                     history,
                     use_container_width=True,
                 )
 
         else:
+
             st.info(
-                "Historical pollution data is not available."
+                "Historical pollution data "
+                "is not available."
             )
 
     except Exception:
+
         st.info(
-            "Historical pollution data is not available."
+            "Historical pollution data "
+            "is not available."
         )
 
 # =========================================================
@@ -869,18 +1138,23 @@ elif page == "🌫 Pollution Monitor":
 
 elif page == "🤖 AI Prediction":
 
-    st.title("🤖 AI Pollution Prediction")
+    st.title(
+        "🤖 AI Pollution Prediction"
+    )
 
     st.write(
         "AI-based estimation of future environmental conditions."
     )
 
     try:
+
         predicted_aqi = predict_next_aqi(
             environment,
             selected_city,
         )
+
     except Exception:
+
         predicted_aqi = aqi * 1.03
 
     predicted_aqi = safe_float(
@@ -888,17 +1162,21 @@ elif page == "🤖 AI Prediction":
         aqi,
     )
 
-    change = predicted_aqi - aqi
+    change = (
+        predicted_aqi - aqi
+    )
 
     c1, c2, c3 = st.columns(3)
 
     with c1:
+
         st.metric(
             "Current AQI",
             f"{aqi:.0f}",
         )
 
     with c2:
+
         st.metric(
             "Predicted AQI",
             f"{predicted_aqi:.0f}",
@@ -907,10 +1185,12 @@ elif page == "🤖 AI Prediction":
 
     with c3:
 
-        if predicted_aqi > aqi:
+        if change > 1:
             trend = "Increasing"
-        elif predicted_aqi < aqi:
+
+        elif change < -1:
             trend = "Decreasing"
+
         else:
             trend = "Stable"
 
@@ -920,8 +1200,6 @@ elif page == "🤖 AI Prediction":
         )
 
     st.markdown("---")
-
-    st.subheader("Prediction Analysis")
 
     prediction_df = pd.DataFrame(
         {
@@ -948,11 +1226,15 @@ elif page == "🤖 AI Prediction":
         f"""
         <div class="info-card">
             <h4>🤖 AI Prediction</h4>
+
             <p>
-                The estimated next AQI is
-                <strong>{predicted_aqi:.0f}</strong>.
-                The current AQI is
-                <strong>{aqi:.0f}</strong>.
+                Current AQI:
+                <strong>{aqi:.0f}</strong>
+            </p>
+
+            <p>
+                Estimated AQI:
+                <strong>{predicted_aqi:.0f}</strong>
             </p>
         </div>
         """,
@@ -965,10 +1247,12 @@ elif page == "🤖 AI Prediction":
 
 elif page == "⚠️ Risk Intelligence":
 
-    st.title("⚠️ Environmental Risk Intelligence")
+    st.title(
+        "⚠️ Environmental Risk Intelligence"
+    )
 
     st.write(
-        "AI-assisted environmental risk assessment based on pollution and weather indicators."
+        "AI-assisted environmental risk assessment."
     )
 
     c1, c2 = st.columns(2)
@@ -988,19 +1272,30 @@ elif page == "⚠️ Risk Intelligence":
     with c2:
 
         try:
-            fig = risk_gauge(risk_score)
+
+            fig = risk_gauge(
+                risk_score
+            )
+
             st.plotly_chart(
                 fig,
                 use_container_width=True,
             )
+
         except Exception:
+
             st.progress(
-                min(risk_score / 100, 1.0)
+                min(
+                    risk_score / 100,
+                    1.0,
+                )
             )
 
     st.markdown("---")
 
-    st.subheader("Risk Explanation")
+    st.subheader(
+        "Risk Explanation"
+    )
 
     st.markdown(
         f"""
@@ -1051,10 +1346,12 @@ elif page == "⚠️ Risk Intelligence":
 
 elif page == "🏙 City Comparison":
 
-    st.title("🏙 City Comparison")
+    st.title(
+        "🏙 City Comparison"
+    )
 
     st.write(
-        "Compare pollution and environmental conditions across cities."
+        "Compare pollution levels across cities."
     )
 
     comparison_cities = st.multiselect(
@@ -1072,87 +1369,135 @@ elif page == "🏙 City Comparison":
             city_environment = {}
 
             try:
+
                 info = get_city_data(
                     city_df,
                     city,
                 )
 
-                if isinstance(info, pd.DataFrame):
+                if isinstance(
+                    info,
+                    pd.DataFrame,
+                ):
+
                     if not info.empty:
                         info = info.iloc[0]
 
-                if isinstance(info, pd.Series):
+                if isinstance(
+                    info,
+                    pd.Series,
+                ):
 
-                    for key in [
-                        "PM2.5",
-                        "PM10",
-                        "NO2",
-                        "SO2",
-                        "CO",
-                        "O3",
-                    ]:
-
-                        if key in info.index:
-                            city_environment[key] = info[key]
+                    city_environment = (
+                        info.to_dict()
+                    )
 
             except Exception:
                 pass
 
-            city_environment.setdefault("PM2.5", 75)
-            city_environment.setdefault("PM10", 120)
-            city_environment.setdefault("NO2", 40)
-            city_environment.setdefault("SO2", 20)
-            city_environment.setdefault("CO", 0.8)
-            city_environment.setdefault("O3", 50)
+            city_environment.setdefault(
+                "PM2.5",
+                75,
+            )
+
+            city_environment.setdefault(
+                "PM10",
+                120,
+            )
+
+            city_environment.setdefault(
+                "NO2",
+                40,
+            )
+
+            city_environment.setdefault(
+                "SO2",
+                20,
+            )
+
+            city_environment.setdefault(
+                "CO",
+                0.8,
+            )
+
+            city_environment.setdefault(
+                "O3",
+                50,
+            )
 
             try:
 
                 city_aqi = calculate_aqi(
                     pm25=safe_float(
-                        city_environment["PM2.5"]
+                        city_environment[
+                            "PM2.5"
+                        ]
                     ),
                     pm10=safe_float(
-                        city_environment["PM10"]
+                        city_environment[
+                            "PM10"
+                        ]
                     ),
                     no2=safe_float(
-                        city_environment["NO2"]
+                        city_environment[
+                            "NO2"
+                        ]
                     ),
                     so2=safe_float(
-                        city_environment["SO2"]
+                        city_environment[
+                            "SO2"
+                        ]
                     ),
                     co=safe_float(
-                        city_environment["CO"]
+                        city_environment[
+                            "CO"
+                        ]
                     ),
                     o3=safe_float(
-                        city_environment["O3"]
+                        city_environment[
+                            "O3"
+                        ]
                     ),
                 )
 
             except Exception:
+
                 city_aqi = safe_float(
-                    city_environment["PM2.5"]
+                    city_environment[
+                        "PM2.5"
+                    ]
                 )
 
             rows.append(
                 {
                     "City": city,
                     "AQI": round(
-                        safe_float(city_aqi),
+                        safe_float(
+                            city_aqi
+                        ),
                         1,
                     ),
                     "PM2.5": safe_float(
-                        city_environment["PM2.5"]
+                        city_environment[
+                            "PM2.5"
+                        ]
                     ),
                     "PM10": safe_float(
-                        city_environment["PM10"]
+                        city_environment[
+                            "PM10"
+                        ]
                     ),
                     "NO2": safe_float(
-                        city_environment["NO2"]
+                        city_environment[
+                            "NO2"
+                        ]
                     ),
                 }
             )
 
-        comparison_df = pd.DataFrame(rows)
+        comparison_df = pd.DataFrame(
+            rows
+        )
 
         st.dataframe(
             comparison_df,
@@ -1172,13 +1517,16 @@ elif page == "🏙 City Comparison":
             )
 
         except Exception:
+
             st.bar_chart(
-                comparison_df.set_index("City")[
-                    "AQI"
-                ]
+                comparison_df.set_index(
+                    "City"
+                )["AQI"]
             )
 
-        st.subheader("Pollutant Comparison")
+        st.subheader(
+            "Pollutant Comparison"
+        )
 
         try:
 
@@ -1192,13 +1540,13 @@ elif page == "🏙 City Comparison":
             )
 
         except Exception:
-            st.dataframe(
-                comparison_df,
-                use_container_width=True,
-            )
+            pass
 
     else:
-        st.info("Select at least one city.")
+
+        st.info(
+            "Select at least one city."
+        )
 
 # =========================================================
 # EXPLAINABLE AI
@@ -1206,21 +1554,30 @@ elif page == "🏙 City Comparison":
 
 elif page == "🧠 Explainable AI":
 
-    st.title("🧠 Explainable AI")
+    st.title(
+        "🧠 Explainable AI"
+    )
 
     st.write(
-        "Understand which environmental variables contribute most to the current assessment."
+        "Understand which environmental indicators contribute to the assessment."
     )
 
     try:
 
-        contribution_df = contribution_dataframe(
-            environment
+        contribution_df = (
+            contribution_dataframe(
+                environment
+            )
         )
 
-        if contribution_df is not None and not contribution_df.empty:
+        if (
+            contribution_df is not None
+            and not contribution_df.empty
+        ):
 
-            st.subheader("Feature Contributions")
+            st.subheader(
+                "Feature Contributions"
+            )
 
             st.dataframe(
                 contribution_df,
@@ -1242,16 +1599,22 @@ elif page == "🧠 Explainable AI":
             except Exception:
                 pass
 
-            st.subheader("Top Contributors")
-
             try:
 
-                contributors = top_contributors(
-                    contribution_df
+                contributors = (
+                    top_contributors(
+                        contribution_df
+                    )
                 )
 
                 if contributors:
+
+                    st.subheader(
+                        "Top Contributors"
+                    )
+
                     for item in contributors:
+
                         st.write(
                             f"• {item}"
                         )
@@ -1260,14 +1623,17 @@ elif page == "🧠 Explainable AI":
                 pass
 
         else:
+
             st.info(
-                "Explainability information is not available for the current model."
+                "Explainability information "
+                "is not available."
             )
 
-    except Exception as e:
+    except Exception:
 
         st.info(
-            "Explainability model integration is currently unavailable."
+            "Explainable AI model integration "
+            "is currently unavailable."
         )
 
 # =========================================================
@@ -1276,10 +1642,12 @@ elif page == "🧠 Explainable AI":
 
 elif page == "💡 Recommendations":
 
-    st.title("💡 Environmental Recommendations")
+    st.title(
+        "💡 Environmental Recommendations"
+    )
 
     st.write(
-        f"Personalized environmental recommendations for **{selected_city}**."
+        f"Recommendations for **{selected_city}**."
     )
 
     try:
@@ -1292,12 +1660,17 @@ elif page == "💡 Recommendations":
 
         if recs:
 
-            for i, rec in enumerate(recs, 1):
+            for index, rec in enumerate(
+                recs,
+                start=1,
+            ):
 
                 st.markdown(
                     f"""
                     <div class="info-card">
-                        <h4>💡 Recommendation {i}</h4>
+                        <h4>
+                            💡 Recommendation {index}
+                        </h4>
                         <p>{rec}</p>
                     </div>
                     """,
@@ -1307,19 +1680,19 @@ elif page == "💡 Recommendations":
         else:
 
             st.info(
-                "No special recommendations at this time."
+                "No special recommendations."
             )
 
     except Exception:
 
-        fallback_recommendations = [
+        fallback = [
             "Monitor AQI before outdoor activities.",
-            "Keep windows closed during high pollution periods.",
-            "Stay hydrated and maintain good ventilation indoors.",
-            "Consider a mask during periods of elevated particulate pollution.",
+            "Reduce unnecessary outdoor exposure during high pollution.",
+            "Maintain good indoor ventilation.",
+            "Consider appropriate respiratory protection during elevated pollution.",
         ]
 
-        for rec in fallback_recommendations:
+        for rec in fallback:
 
             st.markdown(
                 f"""
@@ -1336,10 +1709,12 @@ elif page == "💡 Recommendations":
 
 elif page == "🚨 Alerts":
 
-    st.title("🚨 Environmental Alerts")
+    st.title(
+        "🚨 Environmental Alerts"
+    )
 
     st.write(
-        "Potential environmental warnings based on current conditions."
+        "Environmental warnings based on current conditions."
     )
 
     try:
@@ -1361,7 +1736,7 @@ elif page == "🚨 Alerts":
         else:
 
             st.success(
-                "No major environmental alerts detected."
+                "✅ No major environmental alerts detected."
             )
 
     except Exception:
@@ -1369,7 +1744,7 @@ elif page == "🚨 Alerts":
         if aqi >= 300:
 
             st.error(
-                "🚨 Severe AQI alert. Avoid unnecessary outdoor exposure."
+                "🚨 Severe AQI alert detected."
             )
 
         elif aqi >= 200:
@@ -1390,7 +1765,6 @@ elif page == "🚨 Alerts":
                 "✅ No major AQI alert."
             )
 
-    # Critical status
     try:
 
         critical = has_critical_alerts(
@@ -1400,6 +1774,7 @@ elif page == "🚨 Alerts":
         )
 
         if critical:
+
             st.error(
                 "🚨 Critical environmental condition detected."
             )
@@ -1413,32 +1788,63 @@ elif page == "🚨 Alerts":
 
 elif page == "📥 Data Export":
 
-    st.title("📥 Data Export")
+    st.title(
+        "📥 Data Export"
+    )
 
     st.write(
-        "Download the current environmental data for further analysis."
+        "Download the current environmental report."
     )
 
     export_df = pd.DataFrame(
         {
             "City": [selected_city],
+
             "Timestamp": [
                 current_timestamp()
             ],
+
             "AQI": [aqi],
-            "AQI Category": [aqi_category],
+
+            "AQI Category": [
+                aqi_category
+            ],
+
             "PM2.5": [pm25],
+
             "PM10": [pm10],
+
             "NO2": [no2],
+
             "SO2": [so2],
+
             "CO": [co],
+
             "O3": [o3],
-            "Temperature": [temperature],
-            "Humidity": [humidity],
-            "Wind Speed": [wind_speed],
-            "Risk Score": [risk_score],
-            "Risk Level": [risk],
-            "Data Source": [data_source],
+
+            "Temperature": [
+                temperature
+            ],
+
+            "Humidity": [
+                humidity
+            ],
+
+            "Wind Speed": [
+                wind_speed
+            ],
+
+            "Risk Score": [
+                risk_score
+            ],
+
+            "Risk Level": [
+                risk
+            ],
+
+            "Data Source": [
+                data_source
+            ],
         }
     )
 
@@ -1464,8 +1870,10 @@ elif page == "📥 Data Export":
         label="⬇️ Download Environmental Report",
         data=csv_data,
         file_name=(
-            f"green_guardian_"
-            f"{selected_city.lower().replace(' ', '_')}.csv"
+            "green_guardian_"
+            + selected_city.lower()
+            .replace(" ", "_")
+            + ".csv"
         ),
         mime="text/csv",
         use_container_width=True,
@@ -1478,9 +1886,14 @@ elif page == "📥 Data Export":
 st.markdown(
     """
     <div class="footer">
+
         🌱 <strong>AI GreenGuardian</strong><br>
-        Smart Pollution Monitoring & Environmental Risk Intelligence<br>
-        Built with Python • Streamlit • Machine Learning • Open-Meteo
+
+        Smart Pollution Monitoring &
+        Environmental Risk Intelligence<br>
+
+        Python • Streamlit • Machine Learning • Open-Meteo
+
     </div>
     """,
     unsafe_allow_html=True,
