@@ -5,14 +5,16 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
+
 # ============================================================
-# PATH CONFIGURATION
+# PROJECT PATH
 # ============================================================
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
+
 
 # ============================================================
 # PROJECT IMPORTS
@@ -28,7 +30,6 @@ from src.data_loader import (
 from src.pollution_api import (
     build_environment_record,
     air_quality_history,
-    get_combined_environment_data,
 )
 
 from src.aqi_calculator import (
@@ -104,249 +105,277 @@ st.set_page_config(
 
 st.markdown(
     """
-<style>
+    <style>
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url(
+        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
+    );
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
 
-.stApp {
-    background:
-        radial-gradient(circle at 10% 0%, rgba(34,197,94,0.10), transparent 25%),
-        radial-gradient(circle at 90% 10%, rgba(14,165,233,0.08), transparent 25%),
-        #07110d;
-    color: #f8fafc;
-}
+    .stApp {
+        background:
+            radial-gradient(
+                circle at 10% 0%,
+                rgba(34,197,94,0.10),
+                transparent 25%
+            ),
+            radial-gradient(
+                circle at 90% 10%,
+                rgba(14,165,233,0.08),
+                transparent 25%
+            ),
+            #07110d;
 
-/* Main container */
+        color: #f8fafc;
+    }
 
-.block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 3rem;
-    max-width: 1450px;
-}
+    .block-container {
+        max-width: 1450px;
+        padding-top: 1.5rem;
+        padding-bottom: 3rem;
+    }
 
-/* Sidebar */
+    /* ================= SIDEBAR ================= */
 
-section[data-testid="stSidebar"] {
-    background:
-        linear-gradient(
-            180deg,
-            #07110d 0%,
-            #0b1812 50%,
-            #07110d 100%
-        );
-    border-right: 1px solid rgba(255,255,255,0.08);
-}
+    section[data-testid="stSidebar"] {
+        background:
+            linear-gradient(
+                180deg,
+                #07110d 0%,
+                #0b1812 50%,
+                #07110d 100%
+            );
 
-section[data-testid="stSidebar"] * {
-    color: #e5e7eb;
-}
+        border-right: 1px solid rgba(255,255,255,0.08);
+    }
 
-/* Hero */
+    section[data-testid="stSidebar"] * {
+        color: #e5e7eb;
+    }
 
-.hero {
-    padding: 30px;
-    border-radius: 28px;
-    margin-bottom: 25px;
+    /* ================= HERO ================= */
 
-    background:
-        linear-gradient(
-            135deg,
-            rgba(22,163,74,0.20),
-            rgba(14,165,233,0.10)
-        );
+    .hero {
+        padding: 32px;
+        border-radius: 28px;
+        margin-bottom: 25px;
 
-    border: 1px solid rgba(74,222,128,0.18);
+        background:
+            linear-gradient(
+                135deg,
+                rgba(22,163,74,0.20),
+                rgba(14,165,233,0.10)
+            );
 
-    box-shadow:
-        0 20px 60px rgba(0,0,0,0.30);
-}
+        border: 1px solid rgba(74,222,128,0.18);
 
-.hero-title {
-    font-size: 42px;
-    font-weight: 800;
-    margin-bottom: 8px;
+        box-shadow:
+            0 20px 60px rgba(0,0,0,0.30);
+    }
 
-    background:
-        linear-gradient(
-            90deg,
-            #4ade80,
-            #22c55e,
-            #38bdf8
-        );
+    .hero-title {
+        font-size: 42px;
+        font-weight: 800;
+        margin-bottom: 8px;
 
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
+        background:
+            linear-gradient(
+                90deg,
+                #4ade80,
+                #22c55e,
+                #38bdf8
+            );
 
-.hero-subtitle {
-    color: #a7f3d0;
-    font-size: 16px;
-    line-height: 1.7;
-}
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
 
-/* Cards */
+    .hero-subtitle {
+        color: #a7f3d0;
+        font-size: 16px;
+        line-height: 1.7;
+    }
 
-.metric-card {
-    padding: 22px;
-    min-height: 145px;
+    /* ================= BADGES ================= */
 
-    border-radius: 22px;
+    .badge-container {
+        margin-top: 18px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
 
-    background:
-        linear-gradient(
-            145deg,
-            rgba(255,255,255,0.065),
-            rgba(255,255,255,0.025)
-        );
+    .badge {
+        padding: 7px 13px;
+        border-radius: 20px;
+        font-size: 12px;
+    }
 
-    border: 1px solid rgba(255,255,255,0.08);
+    .badge-location {
+        background: rgba(34,197,94,0.12);
+        color: #86efac;
+    }
 
-    box-shadow:
-        0 15px 40px rgba(0,0,0,0.22);
-}
+    .badge-source {
+        background: rgba(56,189,248,0.10);
+        color: #7dd3fc;
+    }
 
-.metric-label {
-    color: #94a3b8;
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
+    .badge-ai {
+        background: rgba(168,85,247,0.10);
+        color: #d8b4fe;
+    }
 
-.metric-value {
-    color: #f8fafc;
-    font-size: 34px;
-    font-weight: 800;
-    margin-top: 8px;
-}
+    /* ================= METRIC CARDS ================= */
 
-.metric-description {
-    color: #94a3b8;
-    font-size: 12px;
-    margin-top: 4px;
-}
+    .metric-card {
+        padding: 22px;
+        min-height: 145px;
 
-/* Section heading */
+        border-radius: 22px;
 
-.section-title {
-    font-size: 25px;
-    font-weight: 750;
-    color: #f8fafc;
-    margin-top: 30px;
-    margin-bottom: 15px;
-}
+        background:
+            linear-gradient(
+                145deg,
+                rgba(255,255,255,0.065),
+                rgba(255,255,255,0.025)
+            );
 
-.section-subtitle {
-    color: #94a3b8;
-    margin-bottom: 20px;
-}
+        border: 1px solid rgba(255,255,255,0.08);
 
-/* Status */
+        box-shadow:
+            0 15px 40px rgba(0,0,0,0.22);
+    }
 
-.status-good {
-    color: #4ade80;
-}
+    .metric-label {
+        color: #94a3b8;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
 
-.status-warning {
-    color: #facc15;
-}
+    .metric-value {
+        color: #f8fafc;
+        font-size: 34px;
+        font-weight: 800;
+        margin-top: 8px;
+    }
 
-.status-danger {
-    color: #fb7185;
-}
+    .metric-description {
+        color: #94a3b8;
+        font-size: 12px;
+        margin-top: 4px;
+    }
 
-/* Alert */
+    /* ================= SECTION ================= */
 
-.alert-box {
-    padding: 17px 20px;
-    border-radius: 16px;
-    margin: 8px 0;
+    .section-title {
+        font-size: 25px;
+        font-weight: 750;
+        color: #f8fafc;
+        margin-top: 30px;
+        margin-bottom: 15px;
+    }
 
-    background: rgba(239,68,68,0.08);
-    border: 1px solid rgba(248,113,113,0.20);
-}
+    .section-subtitle {
+        color: #94a3b8;
+        margin-bottom: 20px;
+    }
 
-.alert-title {
-    font-weight: 700;
-    color: #fca5a5;
-}
+    /* ================= ALERT ================= */
 
-.alert-message {
-    color: #cbd5e1;
-    font-size: 14px;
-}
+    .alert-box {
+        padding: 17px 20px;
+        border-radius: 16px;
+        margin: 8px 0;
 
-/* Recommendation */
+        background: rgba(239,68,68,0.08);
+        border: 1px solid rgba(248,113,113,0.20);
+    }
 
-.recommendation {
-    padding: 17px 20px;
-    margin: 8px 0;
+    .alert-title {
+        font-weight: 700;
+        color: #fca5a5;
+    }
 
-    border-radius: 16px;
+    .alert-message {
+        color: #cbd5e1;
+        font-size: 14px;
+        margin-top: 5px;
+    }
 
-    background: rgba(34,197,94,0.07);
-    border: 1px solid rgba(74,222,128,0.14);
-}
+    /* ================= RECOMMENDATION ================= */
 
-.recommendation-number {
-    color: #4ade80;
-    font-weight: 800;
-}
+    .recommendation {
+        padding: 17px 20px;
+        margin: 8px 0;
 
-/* Footer */
+        border-radius: 16px;
 
-.footer {
-    text-align: center;
-    color: #64748b;
-    font-size: 12px;
-    padding-top: 40px;
-    padding-bottom: 10px;
-}
+        background: rgba(34,197,94,0.07);
+        border: 1px solid rgba(74,222,128,0.14);
 
-/* Buttons */
+        color: #d1fae5;
+    }
 
-.stButton > button {
-    border-radius: 12px;
-    border: 1px solid rgba(74,222,128,0.25);
-    background: rgba(34,197,94,0.10);
-    color: #bbf7d0;
-    font-weight: 600;
-}
+    .recommendation-number {
+        color: #4ade80;
+        font-weight: 800;
+    }
 
-.stButton > button:hover {
-    border-color: #4ade80;
-    background: rgba(34,197,94,0.18);
-}
+    /* ================= FOOTER ================= */
 
-/* Selectbox */
+    .footer {
+        text-align: center;
+        color: #64748b;
+        font-size: 12px;
+        padding-top: 40px;
+        padding-bottom: 10px;
+        line-height: 1.7;
+    }
 
-div[data-baseweb="select"] > div {
-    border-radius: 12px;
-}
+    /* ================= BUTTONS ================= */
 
-/* Dataframe */
+    .stButton > button {
+        border-radius: 12px;
 
-[data-testid="stDataFrame"] {
-    border-radius: 16px;
-    overflow: hidden;
-}
+        border: 1px solid rgba(74,222,128,0.25);
 
-/* Hide Streamlit */
+        background: rgba(34,197,94,0.10);
 
-#MainMenu {
-    visibility: hidden;
-}
+        color: #bbf7d0;
 
-footer {
-    visibility: hidden;
-}
+        font-weight: 600;
+    }
 
-</style>
-""",
+    .stButton > button:hover {
+        border-color: #4ade80;
+        background: rgba(34,197,94,0.18);
+    }
+
+    /* ================= DATAFRAME ================= */
+
+    [data-testid="stDataFrame"] {
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    /* ================= HIDE STREAMLIT ================= */
+
+    #MainMenu {
+        visibility: hidden;
+    }
+
+    footer {
+        visibility: hidden;
+    }
+
+    </style>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -356,26 +385,37 @@ footer {
 # ============================================================
 
 @st.cache_data(ttl=3600)
-def load_city_data_cached():
-    return load_city_dataset()
-
-
-@st.cache_data(ttl=1800)
-def load_pollution_data_cached():
-    return load_pollution_dataset()
-
-
-@st.cache_data(ttl=1800)
-def load_weather_data_cached():
-    return load_weather_dataset()
-
-
-# ============================================================
-# SAFE HELPERS
-# ============================================================
-
-def safe_number(value, default=0.0):
+def get_city_dataset():
     try:
+        return load_city_dataset()
+    except Exception:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=1800)
+def get_pollution_dataset():
+    try:
+        return load_pollution_dataset()
+    except Exception:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=1800)
+def get_weather_dataset():
+    try:
+        return load_weather_dataset()
+    except Exception:
+        return pd.DataFrame()
+
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+def safe_float(value, default=0.0):
+
+    try:
+
         if value is None:
             return default
 
@@ -385,115 +425,133 @@ def safe_number(value, default=0.0):
         return float(value)
 
     except Exception:
+
         return default
 
 
-def get_first_value(data, keys, default=0.0):
+def fallback_environment():
 
-    for key in keys:
+    pollution_df = get_pollution_dataset()
 
-        if key in data:
-
-            value = safe_number(data[key], None)
-
-            if value is not None:
-                return value
-
-    return default
-
-
-def build_fallback_environment(city):
-
-    pollution_df = load_pollution_data_cached()
+    defaults = {
+        "PM2.5": 35.0,
+        "PM10": 65.0,
+        "NO2": 25.0,
+        "SO2": 10.0,
+        "CO": 0.8,
+        "O3": 45.0,
+        "Temperature": 28.0,
+        "Humidity": 55.0,
+        "Wind Speed": 8.0,
+    }
 
     if pollution_df.empty:
-        return {
-            "PM2.5": 35,
-            "PM10": 65,
-            "NO2": 25,
-            "SO2": 10,
-            "CO": 0.8,
-            "O3": 45,
-            "Temperature": 28,
-            "Humidity": 55,
-            "Wind Speed": 8,
-        }
+        return defaults
 
     row = pollution_df.iloc[-1]
 
-    result = {}
+    for key in defaults:
 
-    for column in [
-        "PM2.5",
-        "PM10",
-        "NO2",
-        "SO2",
-        "CO",
-        "O3",
-        "Temperature",
-        "Humidity",
-        "Wind Speed",
-    ]:
+        if key in row:
 
-        if column in row:
-            result[column] = safe_number(row[column])
+            try:
 
-    defaults = {
-        "PM2.5": 35,
-        "PM10": 65,
-        "NO2": 25,
-        "SO2": 10,
-        "CO": 0.8,
-        "O3": 45,
-        "Temperature": 28,
-        "Humidity": 55,
-        "Wind Speed": 8,
-    }
+                value = float(row[key])
 
-    for key, value in defaults.items():
+                if pd.notna(value):
+                    defaults[key] = value
 
-        if key not in result:
-            result[key] = value
+            except Exception:
+                pass
 
-    return result
+    return defaults
 
 
-def get_environment(city, live_mode):
+def get_environment_data(city, live):
 
-    if not live_mode:
-        return build_fallback_environment(city), "Dataset Demo"
+    if not live:
+        return fallback_environment(), "Dataset Demo"
 
     try:
 
         city_info = get_city_data(city)
 
         if city_info is None:
-            return build_fallback_environment(city), "Dataset Demo"
+            return fallback_environment(), "Dataset Demo"
 
-        latitude = safe_number(
+        latitude = safe_float(
             city_info.get("Latitude", 0)
         )
 
-        longitude = safe_number(
+        longitude = safe_float(
             city_info.get("Longitude", 0)
         )
 
-        if latitude == 0 and longitude == 0:
-            return build_fallback_environment(city), "Dataset Demo"
+        if latitude == 0 or longitude == 0:
+
+            return (
+                fallback_environment(),
+                "Dataset Demo"
+            )
 
         data = build_environment_record(
             latitude,
-            longitude
+            longitude,
         )
 
         if data:
-            return clean_environment_data(data), "Live API"
+
+            return (
+                clean_environment_data(data),
+                "Live API",
+            )
 
     except Exception as error:
 
         st.session_state["api_error"] = str(error)
 
-    return build_fallback_environment(city), "Dataset Demo"
+    return fallback_environment(), "Dataset Demo"
+
+
+def get_aqi_category_safe(aqi):
+
+    try:
+        return aqi_category(aqi)
+    except Exception:
+
+        if aqi <= 50:
+            return "Good"
+
+        if aqi <= 100:
+            return "Moderate"
+
+        if aqi <= 200:
+            return "Poor"
+
+        if aqi <= 300:
+            return "Very Poor"
+
+        return "Severe"
+
+
+def calculate_current_aqi(environment):
+
+    try:
+
+        return float(
+            calculate_aqi(
+                environment.get("PM2.5", 0),
+                environment.get("PM10", 0),
+                environment.get("NO2", 0),
+                environment.get("SO2", 0),
+                environment.get("CO", 0),
+                environment.get("O3", 0),
+            )
+        )
+
+    except Exception:
+
+        return 0.0
 
 
 # ============================================================
@@ -508,7 +566,13 @@ with st.sidebar:
             text-align:center;
             padding:15px 0 20px 0;
         ">
-            <div style="font-size:48px;">🌱</div>
+
+            <div style="
+                font-size:48px;
+            ">
+                🌱
+            </div>
+
             <div style="
                 font-size:22px;
                 font-weight:800;
@@ -516,12 +580,14 @@ with st.sidebar:
             ">
                 GreenGuardian
             </div>
+
             <div style="
                 color:#64748b;
                 font-size:12px;
             ">
                 AI Environmental Intelligence
             </div>
+
         </div>
         """,
         unsafe_allow_html=True,
@@ -529,8 +595,12 @@ with st.sidebar:
 
     st.divider()
 
+    st.markdown(
+        "### 🧭 Navigation"
+    )
+
     page = st.radio(
-        "Navigation",
+        "Select Module",
         [
             "🏠 Dashboard",
             "🌫 Pollution Monitor",
@@ -542,15 +612,31 @@ with st.sidebar:
             "🚨 Alerts",
             "📥 Data Export",
         ],
+        label_visibility="collapsed",
     )
 
     st.divider()
 
-    st.markdown("### 📍 Monitoring")
+    st.markdown(
+        "### 📍 Monitoring Location"
+    )
 
-    city_df = load_city_data_cached()
+    city_df = get_city_dataset()
 
-    if city_df.empty or "City" not in city_df.columns:
+    if (
+        not city_df.empty
+        and "City" in city_df.columns
+    ):
+
+        cities = (
+            city_df["City"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+
+    else:
 
         cities = [
             "Lucknow",
@@ -565,24 +651,21 @@ with st.sidebar:
             "Jaipur",
         ]
 
-    else:
-
-        cities = city_df["City"].dropna().astype(str).tolist()
-
     selected_city = st.selectbox(
-        "Select City",
+        "City",
         cities,
-        index=0,
     )
 
     live_mode = st.toggle(
-        "🌐 Live Environmental Data",
+        "🌐 Use Live Data",
         value=False,
     )
 
+    st.divider()
+
     if st.button(
-        "🔄 Refresh Data",
-        use_container_width=True
+        "🔄 Refresh Dashboard",
+        use_container_width=True,
     ):
 
         st.cache_data.clear()
@@ -592,41 +675,55 @@ with st.sidebar:
 
     st.markdown(
         """
-        **System**
+        <div style="
+            padding:15px;
+            border-radius:15px;
+            background:rgba(34,197,94,0.06);
+            border:1px solid rgba(74,222,128,0.10);
+        ">
 
-        🟢 AI Engine: Active  
-        🟢 Dashboard: Online  
-        🟢 Monitoring: Ready
-        """
+            <div style="
+                color:#4ade80;
+                font-weight:700;
+            ">
+                🟢 System Status
+            </div>
+
+            <br>
+
+            🟢 Dashboard Online<br>
+            🟢 AI Engine Ready<br>
+            🟢 Monitoring Active
+
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 
 # ============================================================
-# LOAD ENVIRONMENT DATA
+# GET CURRENT ENVIRONMENT
 # ============================================================
 
-environment, data_source = get_environment(
+environment, data_source = get_environment_data(
     selected_city,
     live_mode,
 )
 
-environment = clean_environment_data(environment)
-
-
-# ============================================================
-# CALCULATE AQI
-# ============================================================
-
-aqi = calculate_aqi(
-    environment.get("PM2.5", 0),
-    environment.get("PM10", 0),
-    environment.get("NO2", 0),
-    environment.get("SO2", 0),
-    environment.get("CO", 0),
-    environment.get("O3", 0),
+environment = clean_environment_data(
+    environment
 )
 
-aqi = safe_number(aqi)
+
+# ============================================================
+# AQI
+# ============================================================
+
+aqi = calculate_current_aqi(
+    environment
+)
+
+aqi_status = get_aqi_category_safe(aqi)
 
 
 # ============================================================
@@ -635,51 +732,78 @@ aqi = safe_number(aqi)
 
 try:
 
-    risk_score = environmental_risk(
-        environment,
-        aqi
+    risk_score = float(
+        environmental_risk(
+            environment,
+            aqi,
+        )
     )
 
 except Exception:
 
-    risk_score = 0
-
-risk_score = safe_number(risk_score)
+    risk_score = 0.0
 
 try:
-    risk_status = risk_level(risk_score)
+
+    risk_status = risk_level(
+        risk_score
+    )
+
 except Exception:
-    risk_status = "LOW"
+
+    if risk_score < 25:
+        risk_status = "LOW"
+
+    elif risk_score < 50:
+        risk_status = "MODERATE"
+
+    elif risk_score < 75:
+        risk_status = "HIGH"
+
+    else:
+        risk_status = "CRITICAL"
 
 
 # ============================================================
-# PREDICTION
+# AI PREDICTION
 # ============================================================
 
 try:
 
-    predicted_aqi = predict_next_aqi(
-        environment,
-        current_aqi=aqi
+    predicted_aqi = float(
+        predict_next_aqi(
+            environment,
+            current_aqi=aqi,
+        )
     )
 
 except Exception:
 
     predicted_aqi = aqi
 
-predicted_aqi = safe_number(
-    predicted_aqi,
-    aqi
-)
+try:
 
-change = prediction_change(
-    aqi,
-    predicted_aqi
-)
+    change_text = prediction_change(
+        aqi,
+        predicted_aqi,
+    )
+
+except Exception:
+
+    difference = predicted_aqi - aqi
+
+    if difference > 0:
+        change_text = f"↑ {difference:.1f}"
+
+    elif difference < 0:
+        change_text = f"↓ {abs(difference):.1f}"
+
+    else:
+        change_text = "Stable"
 
 
 # ============================================================
-# GLOBAL HERO
+# HERO
 # ============================================================
 
 st.markdown(
@@ -695,40 +819,17 @@ st.markdown(
             Pollution Prediction & Risk Intelligence Platform
         </div>
 
-        <div style="
-            margin-top:18px;
-            display:flex;
-            gap:10px;
-            flex-wrap:wrap;
-        ">
+        <div class="badge-container">
 
-            <span style="
-                padding:7px 13px;
-                border-radius:20px;
-                background:rgba(34,197,94,0.12);
-                color:#86efac;
-                font-size:12px;
-            ">
+            <span class="badge badge-location">
                 📍 {selected_city}
             </span>
 
-            <span style="
-                padding:7px 13px;
-                border-radius:20px;
-                background:rgba(56,189,248,0.10);
-                color:#7dd3fc;
-                font-size:12px;
-            ">
+            <span class="badge badge-source">
                 🌐 {data_source}
             </span>
 
-            <span style="
-                padding:7px 13px;
-                border-radius:20px;
-                background:rgba(168,85,247,0.10);
-                color:#d8b4fe;
-                font-size:12px;
-            ">
+            <span class="badge badge-ai">
                 🤖 AI Powered
             </span>
 
@@ -741,12 +842,13 @@ st.markdown(
 
 
 # ============================================================
-# METRIC CARDS
+# TOP METRICS
 # ============================================================
 
-metric_cols = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-with metric_cols[0]:
+
+with c1:
 
     st.markdown(
         f"""
@@ -761,7 +863,7 @@ with metric_cols[0]:
             </div>
 
             <div class="metric-description">
-                {aqi_category(aqi)}
+                {aqi_status}
             </div>
 
         </div>
@@ -770,7 +872,7 @@ with metric_cols[0]:
     )
 
 
-with metric_cols[1]:
+with c2:
 
     st.markdown(
         f"""
@@ -794,7 +896,7 @@ with metric_cols[1]:
     )
 
 
-with metric_cols[2]:
+with c3:
 
     st.markdown(
         f"""
@@ -809,7 +911,7 @@ with metric_cols[2]:
             </div>
 
             <div class="metric-description">
-                {change}
+                {change_text}
             </div>
 
         </div>
@@ -818,14 +920,14 @@ with metric_cols[2]:
     )
 
 
-with metric_cols[3]:
+with c4:
 
     st.markdown(
         f"""
         <div class="metric-card">
 
             <div class="metric-label">
-                Environmental Risk
+                Risk Score
             </div>
 
             <div class="metric-value">
@@ -856,100 +958,150 @@ if page == "🏠 Dashboard":
     st.markdown(
         f"""
         <div class="section-subtitle">
-            Real-time environmental intelligence for
+            Current environmental intelligence for
             <b>{selected_city}</b>.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    left, right = st.columns([1, 1])
+    col1, col2 = st.columns(2)
 
-    with left:
+    with col1:
 
-        st.plotly_chart(
-            aqi_gauge(aqi),
-            use_container_width=True,
-        )
+        try:
 
-    with right:
+            st.plotly_chart(
+                aqi_gauge(aqi),
+                use_container_width=True,
+            )
 
-        st.plotly_chart(
-            risk_gauge(risk_score),
-            use_container_width=True,
-        )
+        except Exception:
+
+            st.metric(
+                "AQI",
+                f"{aqi:.0f}"
+            )
+
+    with col2:
+
+        try:
+
+            st.plotly_chart(
+                risk_gauge(risk_score),
+                use_container_width=True,
+            )
+
+        except Exception:
+
+            st.metric(
+                "Risk",
+                f"{risk_score:.0f}"
+            )
 
     st.markdown(
         '<div class="section-title">🧪 Pollutant Profile</div>',
         unsafe_allow_html=True,
     )
 
-    st.plotly_chart(
-        pollutant_bar_chart(environment),
-        use_container_width=True,
-    )
+    try:
+
+        st.plotly_chart(
+            pollutant_bar_chart(environment),
+            use_container_width=True,
+        )
+
+    except Exception:
+
+        pollutant_df = pd.DataFrame(
+            {
+                "Pollutant": [
+                    "PM2.5",
+                    "PM10",
+                    "NO2",
+                    "SO2",
+                    "CO",
+                    "O3",
+                ],
+                "Value": [
+                    environment.get("PM2.5", 0),
+                    environment.get("PM10", 0),
+                    environment.get("NO2", 0),
+                    environment.get("SO2", 0),
+                    environment.get("CO", 0),
+                    environment.get("O3", 0),
+                ],
+            }
+        )
+
+        st.dataframe(
+            pollutant_df,
+            use_container_width=True,
+            hide_index=True,
+        )
 
     st.markdown(
-        '<div class="section-title">🌡️ Environmental Conditions</div>',
+        '<div class="section-title">🌡️ Environment Conditions</div>',
         unsafe_allow_html=True,
     )
 
-    weather_data = pd.DataFrame(
-        [
-            {
-                "Metric": "Temperature",
-                "Value": environment.get(
-                    "Temperature", 0
+    weather_df = pd.DataFrame(
+        {
+            "Metric": [
+                "Temperature",
+                "Humidity",
+                "Wind Speed",
+            ],
+            "Value": [
+                environment.get(
+                    "Temperature",
+                    0,
                 ),
-            },
-            {
-                "Metric": "Humidity",
-                "Value": environment.get(
-                    "Humidity", 0
+                environment.get(
+                    "Humidity",
+                    0,
                 ),
-            },
-            {
-                "Metric": "Wind Speed",
-                "Value": environment.get(
-                    "Wind Speed", 0
+                environment.get(
+                    "Wind Speed",
+                    0,
                 ),
-            },
-        ]
+            ],
+        }
     )
 
     st.dataframe(
-        weather_data,
+        weather_df,
         use_container_width=True,
         hide_index=True,
     )
 
     st.markdown(
-        '<div class="section-title">🚨 Environmental Status</div>',
+        '<div class="section-title">🚦 Current Status</div>',
         unsafe_allow_html=True,
     )
 
     if aqi <= 50:
 
         st.success(
-            f"🟢 Air quality is currently in the {aqi_category(aqi)} range."
+            f"🟢 Air quality is currently {aqi_status}."
         )
 
     elif aqi <= 100:
 
         st.warning(
-            f"🟡 Air quality is currently {aqi_category(aqi)}."
+            f"🟡 Air quality is currently {aqi_status}."
         )
 
     elif aqi <= 200:
 
         st.warning(
-            f"🟠 Elevated pollution detected. Current AQI: {aqi:.0f}"
+            f"🟠 Elevated pollution detected. AQI: {aqi:.0f}"
         )
 
     else:
 
         st.error(
-            f"🔴 High pollution detected. Current AQI: {aqi:.0f}"
+            f"🔴 High pollution detected. AQI: {aqi:.0f}"
         )
 
 
@@ -966,12 +1118,15 @@ elif page == "🌫 Pollution Monitor":
 
     st.markdown(
         """
-        Monitor major air pollutants and environmental
-        conditions affecting air quality.
+        <div class="section-subtitle">
+            Monitor major pollutants and environmental
+            conditions affecting air quality.
+        </div>
         """,
+        unsafe_allow_html=True,
     )
 
-    pollutant_data = pd.DataFrame(
+    pollutant_df = pd.DataFrame(
         {
             "Pollutant": [
                 "PM2.5",
@@ -993,18 +1148,23 @@ elif page == "🌫 Pollution Monitor":
     )
 
     st.dataframe(
-        pollutant_data,
+        pollutant_df,
         use_container_width=True,
         hide_index=True,
     )
 
-    st.plotly_chart(
-        pollutant_bar_chart(environment),
-        use_container_width=True,
-    )
+    try:
+
+        st.plotly_chart(
+            pollutant_bar_chart(environment),
+            use_container_width=True,
+        )
+
+    except Exception:
+        pass
 
     st.markdown(
-        '<div class="section-title">📈 Historical Trend</div>',
+        '<div class="section-title">📈 Pollution History</div>',
         unsafe_allow_html=True,
     )
 
@@ -1012,14 +1172,19 @@ elif page == "🌫 Pollution Monitor":
 
         if live_mode:
 
-            city_info = get_city_data(selected_city)
+            city_info = get_city_data(
+                selected_city
+            )
 
             history = air_quality_history(
                 city_info["Latitude"],
                 city_info["Longitude"],
             )
 
-            if history is not None and not history.empty:
+            if (
+                history is not None
+                and not history.empty
+            ):
 
                 st.plotly_chart(
                     pollution_chart(history),
@@ -1029,30 +1194,32 @@ elif page == "🌫 Pollution Monitor":
             else:
 
                 st.info(
-                    "Historical API data is unavailable."
+                    "Live historical pollution data is unavailable."
                 )
 
         else:
 
-            pollution_df = load_pollution_data_cached()
+            pollution_df = get_pollution_dataset()
 
             if not pollution_df.empty:
 
                 st.plotly_chart(
-                    pollution_chart(pollution_df),
+                    pollution_chart(
+                        pollution_df
+                    ),
                     use_container_width=True,
                 )
 
             else:
 
                 st.info(
-                    "No historical dataset available."
+                    "No pollution history dataset found."
                 )
 
     except Exception as error:
 
         st.warning(
-            f"Unable to load historical data: {error}"
+            f"Historical data unavailable: {error}"
         )
 
 
@@ -1069,21 +1236,24 @@ elif page == "🤖 AI Prediction":
 
     st.markdown(
         """
-        Machine-learning models estimate future environmental
-        conditions using pollutant and weather features.
-        """
+        <div class="section-subtitle">
+            Machine-learning models analyze pollution and
+            environmental variables to estimate future AQI.
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    col1, col2, col3 = st.columns(3)
+    p1, p2, p3 = st.columns(3)
 
-    with col1:
+    with p1:
 
         st.metric(
             "Current AQI",
             f"{aqi:.0f}",
         )
 
-    with col2:
+    with p2:
 
         st.metric(
             "Predicted AQI",
@@ -1091,67 +1261,71 @@ elif page == "🤖 AI Prediction":
             delta=f"{predicted_aqi - aqi:.1f}",
         )
 
-    with col3:
+    with p3:
 
         st.metric(
-            "Change",
-            change,
+            "Expected Change",
+            change_text,
         )
 
     st.markdown(
-        '<div class="section-title">📊 Prediction Analysis</div>',
+        '<div class="section-title">📊 Prediction Comparison</div>',
         unsafe_allow_html=True,
     )
 
     prediction_df = pd.DataFrame(
         {
-            "Metric": [
-                "Current AQI",
-                "Predicted AQI",
-            ],
-            "Value": [
+            "AQI": [
                 aqi,
                 predicted_aqi,
-            ],
-        }
+            ]
+        },
+        index=[
+            "Current",
+            "Predicted",
+        ],
     )
 
     st.bar_chart(
-        prediction_df.set_index("Metric")
+        prediction_df
+    )
+
+    st.markdown(
+        '<div class="section-title">🧠 Model Output</div>',
+        unsafe_allow_html=True,
     )
 
     try:
 
-        pollution_prediction = predict_pollution(
+        model_prediction = predict_pollution(
             environment
         )
 
-        st.markdown(
-            '<div class="section-title">🧪 Model Output</div>',
-            unsafe_allow_html=True,
-        )
+        if isinstance(
+            model_prediction,
+            dict,
+        ):
 
-        st.json(
-            pollution_prediction
-            if isinstance(
-                pollution_prediction,
-                dict
+            st.json(
+                model_prediction
             )
-            else {
-                "Predicted AQI":
-                pollution_prediction
-            }
-        )
 
-    except Exception:
+        else:
+
+            st.metric(
+                "Model Prediction",
+                str(model_prediction),
+            )
+
+    except Exception as error:
 
         st.info(
-            "Pollution prediction model output is unavailable."
+            f"Pollution model output unavailable: {error}"
         )
 
-    st.info(
-        "⚠️ AI predictions are estimates and should not be treated "
-        "as official environmental forecasts."
+    st.warning(
+        "⚠️ AI predictions are estimates and should not "
+        "be treated as official environmental forecasts."
     )
 
 
@@ -1166,16 +1340,25 @@ elif page == "⚠️ Risk Intelligence":
         unsafe_allow_html=True,
     )
 
-    left, right = st.columns([1, 1])
+    col1, col2 = st.columns(2)
 
-    with left:
+    with col1:
 
-        st.plotly_chart(
-            risk_gauge(risk_score),
-            use_container_width=True,
-        )
+        try:
 
-    with right:
+            st.plotly_chart(
+                risk_gauge(risk_score),
+                use_container_width=True,
+            )
+
+        except Exception:
+
+            st.metric(
+                "Risk Score",
+                f"{risk_score:.1f}/100",
+            )
+
+    with col2:
 
         st.markdown(
             f"""
@@ -1200,25 +1383,23 @@ elif page == "⚠️ Risk Intelligence":
 
         try:
 
-            message = risk_message(
-                risk_status
+            st.info(
+                risk_message(
+                    risk_status
+                )
             )
 
         except Exception:
-
-            message = "Monitor environmental conditions."
-
-        st.write("")
-        st.info(message)
+            pass
 
     st.markdown(
-        '<div class="section-title">📊 Risk Components</div>',
+        '<div class="section-title">📊 Risk Factors</div>',
         unsafe_allow_html=True,
     )
 
-    risk_components = pd.DataFrame(
+    risk_df = pd.DataFrame(
         {
-            "Component": [
+            "Factor": [
                 "AQI",
                 "PM2.5",
                 "PM10",
@@ -1240,26 +1421,27 @@ elif page == "⚠️ Risk Intelligence":
     )
 
     st.dataframe(
-        risk_components,
+        risk_df,
         use_container_width=True,
         hide_index=True,
     )
 
     try:
 
-        risk_prediction = predict_risk(
+        ai_risk = predict_risk(
             environment
         )
 
         st.markdown(
-            '<div class="section-title">🤖 AI Risk Prediction</div>',
+            '<div class="section-title">🤖 AI Risk Model</div>',
             unsafe_allow_html=True,
         )
 
-        st.write(risk_prediction)
+        st.write(
+            ai_risk
+        )
 
     except Exception:
-
         pass
 
 
@@ -1270,52 +1452,56 @@ elif page == "⚠️ Risk Intelligence":
 elif page == "🏙 City Comparison":
 
     st.markdown(
-        '<div class="section-title">🏙️ Multi-City Environmental Intelligence</div>',
+        '<div class="section-title">🏙️ City Environmental Comparison</div>',
         unsafe_allow_html=True,
     )
 
-    pollution_df = load_pollution_data_cached()
+    pollution_df = get_pollution_dataset()
 
     if pollution_df.empty:
 
         st.warning(
-            "Pollution dataset is empty."
+            "pollution_dataset.csv is empty or unavailable."
+        )
+
+    elif "City" not in pollution_df.columns:
+
+        st.info(
+            """
+            Your current pollution dataset does not contain
+            a `City` column.
+
+            Add a City column to enable city-level comparison.
+            """
         )
 
     else:
 
-        if "City" not in pollution_df.columns:
-
-            st.info(
-                "Add a City column to pollution_dataset.csv "
-                "to enable city-level comparison."
+        city_summary = (
+            pollution_df
+            .groupby("City", as_index=False)
+            .agg(
+                {
+                    "AQI": "mean",
+                    "PM2.5": "mean",
+                    "PM10": "mean",
+                    "NO2": "mean",
+                }
             )
+        )
 
-        else:
+        city_summary = city_summary.sort_values(
+            "AQI",
+            ascending=False,
+        )
 
-            city_summary = (
-                pollution_df
-                .groupby("City", as_index=False)
-                .agg(
-                    {
-                        "AQI": "mean",
-                        "PM2.5": "mean",
-                        "PM10": "mean",
-                        "NO2": "mean",
-                    }
-                )
-            )
+        st.dataframe(
+            city_summary,
+            use_container_width=True,
+            hide_index=True,
+        )
 
-            city_summary = city_summary.sort_values(
-                "AQI",
-                ascending=False,
-            )
-
-            st.dataframe(
-                city_summary,
-                use_container_width=True,
-                hide_index=True,
-            )
+        try:
 
             st.plotly_chart(
                 city_comparison_chart(
@@ -1326,6 +1512,11 @@ elif page == "🏙 City Comparison":
                 use_container_width=True,
             )
 
+        except Exception:
+            pass
+
+        try:
+
             st.plotly_chart(
                 pollutant_comparison_chart(
                     city_summary,
@@ -1334,21 +1525,34 @@ elif page == "🏙 City Comparison":
                 use_container_width=True,
             )
 
-            if (
-                "Latitude" in city_df.columns
-                and "Longitude" in city_df.columns
-            ):
+        except Exception:
+            pass
 
-                map_data = city_df.copy()
+        if (
+            not city_df.empty
+            and "Latitude" in city_df.columns
+            and "Longitude" in city_df.columns
+        ):
 
-                if "AQI" not in map_data.columns:
+            map_data = city_df.copy()
 
-                    map_data["AQI"] = 0
+            if "AQI" not in map_data.columns:
+                map_data["AQI"] = 0
+
+            try:
+
+                st.markdown(
+                    '<div class="section-title">🗺️ Environmental Map</div>',
+                    unsafe_allow_html=True,
+                )
 
                 st.plotly_chart(
                     city_map(map_data),
                     use_container_width=True,
                 )
+
+            except Exception:
+                pass
 
 
 # ============================================================
@@ -1364,8 +1568,8 @@ elif page == "🧠 Explainable AI":
 
     st.markdown(
         """
-        Understand which environmental factors are contributing
-        most to the current pollution/risk assessment.
+        Understand the environmental factors contributing
+        to the current pollution and risk assessment.
         """
     )
 
@@ -1375,7 +1579,10 @@ elif page == "🧠 Explainable AI":
             environment
         )
 
-        if contribution_df is not None:
+        if (
+            contribution_df is not None
+            and not contribution_df.empty
+        ):
 
             st.plotly_chart(
                 contribution_chart(
@@ -1384,65 +1591,78 @@ elif page == "🧠 Explainable AI":
                 use_container_width=True,
             )
 
-            st.markdown(
-                '<div class="section-title">🔎 Top Contributors</div>',
-                unsafe_allow_html=True,
-            )
+    except Exception as error:
 
-            contributors = top_contributors(
-                environment,
-                n=5,
-            )
+        st.warning(
+            f"Contribution analysis unavailable: {error}"
+        )
 
-            if contributors:
+    st.markdown(
+        '<div class="section-title">🔎 Top Environmental Contributors</div>',
+        unsafe_allow_html=True,
+    )
 
-                for index, item in enumerate(
-                    contributors,
-                    start=1
-                ):
+    try:
 
-                    st.markdown(
-                        f"""
-                        <div class="recommendation">
+        contributors = top_contributors(
+            environment,
+            n=5,
+        )
 
-                            <span class="recommendation-number">
-                                #{index}
-                            </span>
+        if contributors:
 
-                            &nbsp;&nbsp;
-
-                            {item}
-
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-            explanation = explain_prediction(
-                environment,
-                predicted_aqi,
-            )
-
-            if explanation:
+            for i, contributor in enumerate(
+                contributors,
+                start=1,
+            ):
 
                 st.markdown(
-                    '<div class="section-title">💬 AI Explanation</div>',
-                    unsafe_allow_html=True,
-                )
+                    f"""
+                    <div class="recommendation">
 
-                st.info(
-                    explanation
+                        <span class="recommendation-number">
+                            #{i}
+                        </span>
+
+                        &nbsp;&nbsp;
+
+                        {contributor}
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
 
     except Exception as error:
 
-        st.warning(
-            f"Explainability module unavailable: {error}"
+        st.info(
+            f"Contributor analysis unavailable: {error}"
         )
 
+    try:
+
+        explanation = explain_prediction(
+            environment,
+            predicted_aqi,
+        )
+
+        if explanation:
+
+            st.markdown(
+                '<div class="section-title">💬 AI Explanation</div>',
+                unsafe_allow_html=True,
+            )
+
+            st.info(
+                explanation
+            )
+
+    except Exception:
+        pass
+
     st.caption(
-        "Note: current explainability is a feature-contribution "
-        "indicator, not causal inference or SHAP-based explanation."
+        "Note: this version uses feature-contribution indicators. "
+        "They are not causal explanations or SHAP values."
     )
 
 
@@ -1472,14 +1692,15 @@ elif page == "💡 Recommendations":
     if not recs:
 
         st.success(
-            "🌱 No major environmental intervention is currently recommended."
+            "🌱 No major environmental intervention "
+            "is currently recommended."
         )
 
     else:
 
-        for index, rec in enumerate(
+        for i, recommendation in enumerate(
             recs,
-            start=1
+            start=1,
         ):
 
             st.markdown(
@@ -1487,12 +1708,12 @@ elif page == "💡 Recommendations":
                 <div class="recommendation">
 
                     <span class="recommendation-number">
-                        {index:02d}
+                        {i:02d}
                     </span>
 
                     &nbsp;&nbsp;
 
-                    {rec}
+                    {recommendation}
 
                 </div>
                 """,
@@ -1516,7 +1737,7 @@ elif page == "💡 Recommendations":
     except Exception:
 
         st.info(
-            "Monitor AQI and local environmental guidance."
+            "Monitor AQI and applicable local environmental guidance."
         )
 
 
@@ -1553,16 +1774,19 @@ elif page == "🚨 Alerts":
 
         for alert in alerts:
 
-            if isinstance(alert, dict):
+            if isinstance(
+                alert,
+                dict,
+            ):
 
                 title = alert.get(
                     "title",
-                    "Environmental Alert"
+                    "Environmental Alert",
                 )
 
                 message = alert.get(
                     "message",
-                    ""
+                    "",
                 )
 
             else:
@@ -1594,27 +1818,34 @@ elif page == "🚨 Alerts":
 
     try:
 
+        summary = alert_summary(
+            aqi,
+            risk_score,
+            environment,
+        )
+
         st.write(
-            alert_summary(
-                aqi,
-                risk_score,
-                environment,
-            )
+            summary
         )
 
     except Exception:
-
         pass
 
-    if has_critical_alerts(
-        aqi,
-        risk_score,
-    ):
+    try:
 
-        st.error(
-            "Critical environmental conditions detected. "
-            "Follow applicable local health/environment guidance."
+        critical = has_critical_alerts(
+            aqi,
+            risk_score,
         )
+
+        if critical:
+
+            st.error(
+                "🔴 Critical environmental conditions detected."
+            )
+
+    except Exception:
+        pass
 
 
 # ============================================================
@@ -1631,17 +1862,44 @@ elif page == "📥 Data Export":
     export_data = {
         "City": selected_city,
         "Data Source": data_source,
-        "Timestamp": current_timestamp(),
-        "AQI": aqi,
-        "Predicted AQI": predicted_aqi,
-        "Risk Score": risk_score,
+        "Timestamp": datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        ),
+        "AQI": round(aqi, 2),
+        "AQI Category": aqi_status,
+        "Predicted AQI": round(
+            predicted_aqi,
+            2,
+        ),
+        "Risk Score": round(
+            risk_score,
+            2,
+        ),
         "Risk Level": risk_status,
-        "PM2.5": environment.get("PM2.5", 0),
-        "PM10": environment.get("PM10", 0),
-        "NO2": environment.get("NO2", 0),
-        "SO2": environment.get("SO2", 0),
-        "CO": environment.get("CO", 0),
-        "O3": environment.get("O3", 0),
+        "PM2.5": environment.get(
+            "PM2.5",
+            0,
+        ),
+        "PM10": environment.get(
+            "PM10",
+            0,
+        ),
+        "NO2": environment.get(
+            "NO2",
+            0,
+        ),
+        "SO2": environment.get(
+            "SO2",
+            0,
+        ),
+        "CO": environment.get(
+            "CO",
+            0,
+        ),
+        "O3": environment.get(
+            "O3",
+            0,
+        ),
         "Temperature": environment.get(
             "Temperature",
             0,
@@ -1678,14 +1936,20 @@ elif page == "📥 Data Export":
             index=False
         )
 
+    filename = (
+        "greenguardian_"
+        + selected_city.lower().replace(" ", "_")
+        + "_"
+        + datetime.now().strftime(
+            "%Y%m%d_%H%M%S"
+        )
+        + ".csv"
+    )
+
     st.download_button(
         label="⬇️ Download Environmental Report",
         data=csv_data,
-        file_name=(
-            f"greenguardian_"
-            f"{selected_city.lower()}_"
-            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        ),
+        file_name=filename,
         mime="text/csv",
         use_container_width=True,
     )
