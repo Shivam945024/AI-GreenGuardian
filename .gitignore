@@ -1,0 +1,60 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Model files
+# Uncomment if you DON'T want to upload trained models to GitHub
+# models/*.pkl
+# models/*.joblib
+
+# Local datasets
+# Uncomment if datasets are large/private
+# data/*.csv
+
+# Generated reports
+reports/
+outputs/
+
+# Local database
+*.db
+*.sqlite
+*.sqlite3
