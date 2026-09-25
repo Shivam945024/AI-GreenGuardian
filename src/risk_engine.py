@@ -1,139 +1,100 @@
-def calculate_risk_score(
-    aqi,
-    pm25,
-    pm10,
-    no2,
-    temperature,
-    humidity,
-    wind_speed
-):
-    """
-    Calculate environmental risk score from 0-100.
-    """
+import math
 
-    aqi_component = min(
-        100,
-        float(aqi) / 5
-    )
 
-    pm25_component = min(
-        100,
-        float(pm25) / 2
-    )
+def _safe(value, default=0.0):
 
-    pm10_component = min(
-        100,
-        float(pm10) / 3
-    )
+    try:
 
-    no2_component = min(
-        100,
-        float(no2) / 2
-    )
+        if value is None:
+            return default
 
-    temperature_component = min(
-        100,
-        max(
-            0,
-            (float(temperature) - 20) * 3
-        )
-    )
+        value = float(value)
 
-    humidity_component = (
-        100
-        if humidity > 85
-        else max(0, humidity - 60) * 2
-    )
+        if math.isnan(value):
+            return default
 
-    wind_component = max(
-        0,
-        100 - float(wind_speed) * 10
-    )
+        return value
 
-    score = (
-        aqi_component * 0.35
-        + pm25_component * 0.20
-        + pm10_component * 0.10
-        + no2_component * 0.10
-        + temperature_component * 0.05
-        + humidity_component * 0.05
-        + wind_component * 0.15
+    except (TypeError, ValueError):
+
+        return default
+
+
+def environmental_risk(environment):
+
+    pm25 = _safe(environment.get("PM2.5"))
+    pm10 = _safe(environment.get("PM10"))
+    no2 = _safe(environment.get("NO2"))
+    so2 = _safe(environment.get("SO2"))
+    co = _safe(environment.get("CO"))
+    o3 = _safe(environment.get("O3"))
+
+    # Normalize pollutant contribution
+    pm25_score = min((pm25 / 60) * 100, 100)
+    pm10_score = min((pm10 / 100) * 100, 100)
+    no2_score = min((no2 / 80) * 100, 100)
+    so2_score = min((so2 / 80) * 100, 100)
+    co_score = min((co / 10000) * 100, 100)
+    o3_score = min((o3 / 120) * 100, 100)
+
+    # Weighted risk
+    risk = (
+
+        pm25_score * 0.35
+        + pm10_score * 0.20
+        + no2_score * 0.15
+        + so2_score * 0.10
+        + co_score * 0.10
+        + o3_score * 0.10
+
     )
 
     return round(
-        max(0, min(100, score)),
+        max(0, min(risk, 100)),
         2
     )
 
 
 def risk_level(score):
-    """
-    Convert risk score to risk category.
-    """
 
-    score = float(score)
+    score = _safe(score)
 
-    if score < 25:
-        return "LOW"
+    if score <= 20:
+        return "Low"
 
-    if score < 50:
-        return "MODERATE"
+    elif score <= 40:
+        return "Moderate"
 
-    if score < 75:
-        return "HIGH"
+    elif score <= 60:
+        return "High"
 
-    return "CRITICAL"
+    elif score <= 80:
+        return "Very High"
+
+    else:
+        return "Critical"
 
 
-def environmental_risk(data, aqi):
-    """
-    Complete risk calculation.
-    """
-
-    score = calculate_risk_score(
-        aqi=aqi,
-        pm25=data.get("PM2.5", 0),
-        pm10=data.get("PM10", 0),
-        no2=data.get("NO2", 0),
-        temperature=data.get(
-            "Temperature",
-            0
-        ),
-        humidity=data.get(
-            "Humidity",
-            0
-        ),
-        wind_speed=data.get(
-            "Wind Speed",
-            0
-        ),
-    )
+def risk_message(score):
 
     level = risk_level(score)
 
-    return level, score
-
-
-def risk_message(level):
-    """
-    Generate risk explanation.
-    """
-
     messages = {
-        "LOW":
-            "Environmental conditions are currently relatively stable.",
 
-        "MODERATE":
-            "Environmental conditions require regular monitoring.",
+        "Low":
+            "Environmental conditions are generally safe.",
 
-        "HIGH":
-            "Elevated environmental risk detected. Monitor pollution trends closely.",
+        "Moderate":
+            "Some pollution is present. Sensitive people should take care.",
 
-        "CRITICAL":
-            "Very high environmental risk detected. Follow local environmental guidance.",
+        "High":
+            "Pollution levels may affect health. Reduce prolonged outdoor exposure.",
+
+        "Very High":
+            "High environmental risk. Limit outdoor activities.",
+
+        "Critical":
+            "Critical pollution conditions. Avoid unnecessary outdoor exposure."
     }
 
-    return messages.get(
-        level,
-        "Monitor environmental conditions."
-    )
+    return messages[level]
