@@ -18,23 +18,23 @@ CITY_COORDINATES = {
 
 
 def get_city_coordinates(city):
-    city = str(city).strip()
 
-    for name, coordinates in CITY_COORDINATES.items():
-        if name.lower() == city.lower():
-            return coordinates
+    city = str(city).strip().lower()
+
+    for name, coords in CITY_COORDINATES.items():
+
+        if name.lower() == city:
+            return coords
 
     return CITY_COORDINATES["Lucknow"]
 
 
-def safe_request(url, params, retries=2):
-    """
-    Request helper with retry handling for 429 errors.
-    """
+def safe_request(url, params, retries=1):
 
     for attempt in range(retries + 1):
 
         try:
+
             response = requests.get(
                 url,
                 params=params,
@@ -44,7 +44,7 @@ def safe_request(url, params, retries=2):
             if response.status_code == 429:
 
                 if attempt < retries:
-                    time.sleep(2 * (attempt + 1))
+                    time.sleep(3)
                     continue
 
                 return None
@@ -56,7 +56,7 @@ def safe_request(url, params, retries=2):
         except requests.RequestException:
 
             if attempt < retries:
-                time.sleep(2 * (attempt + 1))
+                time.sleep(2)
                 continue
 
             return None
@@ -73,18 +73,17 @@ def build_environment_record(
     if latitude is None or longitude is None:
         latitude, longitude = get_city_coordinates(city)
 
-    # --------------------------------------------------
-    # AIR QUALITY API
-    # --------------------------------------------------
+    # ---------------------------------------------
+    # AIR QUALITY
+    # ---------------------------------------------
 
-    air_quality_url = (
+    air_url = (
         "https://air-quality-api.open-meteo.com/v1/air-quality"
     )
 
-    air_quality_params = {
+    air_params = {
 
         "latitude": latitude,
-
         "longitude": longitude,
 
         "current": (
@@ -96,69 +95,17 @@ def build_environment_record(
             "ozone"
         ),
 
-        "timezone": "auto",
+        "timezone": "auto"
     }
 
     air_data = safe_request(
-        air_quality_url,
-        air_quality_params
+        air_url,
+        air_params
     )
 
-    # --------------------------------------------------
-    # DEFAULT VALUES
-    # --------------------------------------------------
-
-    environment = {
-
-        "City": city,
-
-        "PM2.5": 0,
-        "PM10": 0,
-        "NO2": 0,
-        "SO2": 0,
-        "CO": 0,
-        "O3": 0,
-
-        "Temperature": 0,
-        "Humidity": 0,
-        "Wind Speed": 0,
-    }
-
-    # --------------------------------------------------
-    # AIR QUALITY DATA
-    # --------------------------------------------------
-
-    if air_data:
-
-        current = air_data.get("current", {})
-
-        environment["PM2.5"] = current.get(
-            "pm2_5", 0
-        )
-
-        environment["PM10"] = current.get(
-            "pm10", 0
-        )
-
-        environment["NO2"] = current.get(
-            "nitrogen_dioxide", 0
-        )
-
-        environment["SO2"] = current.get(
-            "sulphur_dioxide", 0
-        )
-
-        environment["CO"] = current.get(
-            "carbon_monoxide", 0
-        )
-
-        environment["O3"] = current.get(
-            "ozone", 0
-        )
-
-    # --------------------------------------------------
-    # WEATHER API
-    # --------------------------------------------------
+    # ---------------------------------------------
+    # WEATHER
+    # ---------------------------------------------
 
     weather_url = (
         "https://api.open-meteo.com/v1/forecast"
@@ -167,7 +114,6 @@ def build_environment_record(
     weather_params = {
 
         "latitude": latitude,
-
         "longitude": longitude,
 
         "current": (
@@ -176,7 +122,7 @@ def build_environment_record(
             "wind_speed_10m"
         ),
 
-        "timezone": "auto",
+        "timezone": "auto"
     }
 
     weather_data = safe_request(
@@ -184,30 +130,64 @@ def build_environment_record(
         weather_params
     )
 
-    # --------------------------------------------------
-    # WEATHER DATA
-    # --------------------------------------------------
+    # ---------------------------------------------
+    # ENVIRONMENT DATA
+    # ---------------------------------------------
 
-    if weather_data:
+    environment = {
+        "City": city,
 
-        weather_current = weather_data.get(
+        "PM2.5": None,
+        "PM10": None,
+        "NO2": None,
+        "SO2": None,
+        "CO": None,
+        "O3": None,
+
+        "Temperature": None,
+        "Humidity": None,
+        "Wind Speed": None,
+    }
+
+    # ---------------------------------------------
+    # AIR DATA
+    # ---------------------------------------------
+
+    if air_data:
+
+        current = air_data.get(
             "current",
             {}
         )
 
-        environment["Temperature"] = weather_current.get(
-            "temperature_2m",
-            0
+        environment["PM2.5"] = current.get("pm2_5")
+        environment["PM10"] = current.get("pm10")
+        environment["NO2"] = current.get("nitrogen_dioxide")
+        environment["SO2"] = current.get("sulphur_dioxide")
+        environment["CO"] = current.get("carbon_monoxide")
+        environment["O3"] = current.get("ozone")
+
+    # ---------------------------------------------
+    # WEATHER DATA
+    # ---------------------------------------------
+
+    if weather_data:
+
+        current_weather = weather_data.get(
+            "current",
+            {}
         )
 
-        environment["Humidity"] = weather_current.get(
-            "relative_humidity_2m",
-            0
+        environment["Temperature"] = current_weather.get(
+            "temperature_2m"
         )
 
-        environment["Wind Speed"] = weather_current.get(
-            "wind_speed_10m",
-            0
+        environment["Humidity"] = current_weather.get(
+            "relative_humidity_2m"
+        )
+
+        environment["Wind Speed"] = current_weather.get(
+            "wind_speed_10m"
         )
 
     return environment
@@ -224,7 +204,6 @@ def air_quality_history(city, days=7):
     params = {
 
         "latitude": latitude,
-
         "longitude": longitude,
 
         "hourly": (
@@ -238,10 +217,13 @@ def air_quality_history(city, days=7):
 
         "past_days": days,
 
-        "timezone": "auto",
+        "timezone": "auto"
     }
 
-    data = safe_request(url, params)
+    data = safe_request(
+        url,
+        params
+    )
 
     if not data:
         return pd.DataFrame()
@@ -257,7 +239,6 @@ def air_quality_history(city, days=7):
     df = pd.DataFrame(hourly)
 
     if "time" in df.columns:
-
         df["time"] = pd.to_datetime(
             df["time"]
         )
